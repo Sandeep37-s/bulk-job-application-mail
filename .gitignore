@@ -4,3 +4,8 @@ node_modules
 .env.local
 .DS_Store
 npm-debug.log*
+
+# job agent
+agent/.env
+agent/data/
+__pycache__/

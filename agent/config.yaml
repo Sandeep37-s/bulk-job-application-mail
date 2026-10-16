@@ -1,0 +1,59 @@
+# Job-hunt agent configuration. Secrets go in .env, not here.
+
+profile:
+  name: Sandeep Kumar
+  email: sandeep22112002@gmail.com
+  phone: "+91-6005362383"
+  linkedin: ""            # TODO: full LinkedIn URL
+  github: https://github.com/Sandeep37-s
+  current_role: AI Engineer at Dhruva Technology
+  target_roles: [AI Engineer, GenAI Engineer, ML Engineer, LLM Engineer, Data Scientist]
+  # Facts the email writer may use. It is told never to invent anything beyond this.
+  facts: |
+    - Currently working as an AI Engineer at Dhruva Technology (since Jul 2026).
+    - B.Tech CSE, Central University of Jammu (2022-2026), CGPA 7.5.
+    - AI Intern at National Informatics Centre (NIC), Jan-Jun 2026: built a RAG document-intelligence
+      system (LangChain, ChromaDB, FastAPI) and an LLM-powered land-information chatbot with semantic search.
+    - ML Intern at Vaishnav Technologies, Jun-Dec 2025: classification/prediction pipelines with scikit-learn, pandas.
+    - GenAI Intern at Innomatics Research Labs, Jan-Jul 2025: LLM apps and prompt engineering.
+    - Projects: Financial Deep Research Agent (multi-agent, LangGraph/CrewAI, RAG, FastAPI);
+      AyuScan (computer vision health analyzer, OpenCV, Flask); WildGuard AI (Telegram bot, MySQL).
+    - Skills: Python, SQL, PyTorch, TensorFlow, scikit-learn, LangChain, RAG, MCP, FastAPI, Docker, Linux.
+
+resume_path: resume/Sandeep_Kumar_Resume.pdf
+
+search:
+  cities: [Delhi, New Delhi, Noida, Greater Noida]   # leads outside these are dropped
+  every_hours: 3
+  results_per_query: 10
+  # {city} is replaced with each entry of cities_for_queries.
+  cities_for_queries: [Delhi, Noida]
+  queries:
+    - AI engineer job opening startup {city}
+    - GenAI engineer hiring {city} startup
+    - LLM engineer hiring {city}
+    - machine learning engineer job {city} startup
+    - AI startup {city} careers
+    - top AI startups in {city} 2026
+    - list of generative AI companies {city} NCR
+    - generative AI startup {city}
+    - site:wellfound.com AI startup {city}
+    - site:cutshort.io AI engineer {city}
+    - site:instahyre.com AI engineer {city}
+    - site:linkedin.com/jobs "AI Engineer" {city}
+
+filters:
+  max_employees: 200          # "small company" cutoff (LLM estimate)
+  # Never email these (matched anywhere in the company name, website or email address).
+  never_contact: [dhruva, dhurva]
+  # Big companies are skipped: their HR inboxes don't answer cold emails.
+  blocklist: [google, microsoft, amazon, meta, apple, ibm, accenture, tcs, infosys, wipro, hcl, cognizant,
+              capgemini, deloitte, pwc, ey, kpmg, oracle, adobe, samsung, paytm, zomato, flipkart, nvidia,
+              naukri, indeed, linkedin, glassdoor, internshala, foundit, shine, timesjobs, wellfound,
+              cutshort, instahyre, hirist, iimjobs, apna, upgrad, simplilearn, coursera]
+
+sending:
+  auto_send: false            # true = send without asking you. Keep false.
+  daily_limit: 20             # Gmail flags accounts that cold-email a lot; stay low.
+  min_gap_seconds: 90         # pause between two sends
+  followup_after_days: 0      # 0 = never send a follow-up

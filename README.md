@@ -1,5 +1,12 @@
 # Dispatch — Bulk Job-Application Email Sender
 
+> **Two tools in this repo**
+>
+> | | |
+> |---|---|
+> | 🤖 **[AI Job-Hunt Agent](agent/README.md)** | Runs 24/7, finds small AI startups in Delhi/Noida, drafts a tailored email for each and sends it from your Gmail after you approve it on Telegram. *(Python · Azure OpenAI · Telegram)* |
+> | ✉️ **Dispatch web app** (below) | Paste or upload a recipient list and send personalized applications in bulk from the browser. *(Next.js · Gmail API)* |
+
 Send personalized job-application emails to many recruiters, one click at a
 time, directly from your own Gmail account.
 
