@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🤖 AI Job-Hunt Agent
+<img src="assets/hero.svg" alt="AI Job-Hunt Agent" width="100%">
 
 **Finds small AI startups in Delhi & Noida, writes each one a tailored application, and sends it from your Gmail — but only after you tap ✅ on Telegram.**
 
@@ -20,6 +20,11 @@ Big companies route applications through portals and ATS filters. Small AI start
 
 ## How it works
 
+<p align="center"><img src="assets/pipeline.svg" alt="Every 3 h → web search → AI filter → company site → tailored draft → you approve → sent" width="100%"></p>
+
+<details>
+<summary>Detailed flow</summary>
+
 ```mermaid
 flowchart LR
     A[⏰ Every 3 h] --> B[🔎 Web search<br/>job posts · startup lists ·<br/>Wellfound · Cutshort · LinkedIn]
@@ -32,23 +37,29 @@ flowchart LR
     F -- ❌ Skip --> H[🗂 never shown again]
 ```
 
-Every card tells you **why** that company was picked and **where** the address came from:
+</details>
 
-```text
-Acme Vision AI · Noida            (example)
-🔵 AI company (no posted opening — writing to HR)
-🏢 Builds document-understanding APIs for Indian banks
-💡 Small Noida AI startup working on LLMs and OCR
-🌐 https://acmevision.example
-✉️ To: careers@acmevision.example
-   found on: https://acmevision.example/careers
+## Your approval card
 
-Subject: GenAI engineer – RAG and search experience
+<table>
+<tr>
+<td width="50%"><img src="assets/telegram-card.svg" alt="Telegram approval card: company, reason, verified address, draft, Send/Rewrite/Skip" width="100%"></td>
+<td>
 
-Hi Team,
-...
-        [ ✅ Send ]   [ 🔁 Rewrite ]   [ ❌ Skip ]
-```
+Every card tells you:
+
+- **Why** this company was picked: 🟢 *hiring for a role*, or 🔵 *AI company, writing to HR*
+- **What they build**, so you can judge fit in two seconds
+- **Where the address came from**: a link to the page it was found on
+- The **full draft**, with your resume attached
+
+Then tap **✅ Send**, **🔁 Rewrite** or **❌ Skip**.
+
+*(Example company; illustration only.)*
+
+</td>
+</tr>
+</table>
 
 Reply to a card with *"shorter"* or *"mention my computer-vision project"* to get a rewrite, or with `to: founder@company.com` to change the recipient.
 

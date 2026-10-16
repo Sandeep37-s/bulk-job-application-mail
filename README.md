@@ -1,3 +1,7 @@
+<a href="agent/README.md"><img src="agent/assets/hero.svg" alt="AI Job-Hunt Agent" width="100%"></a>
+
+<p align="center"><img src="agent/assets/pipeline.svg" alt="How the agent works" width="100%"></p>
+
 # Dispatch — Bulk Job-Application Email Sender
 
 > **Two tools in this repo**
