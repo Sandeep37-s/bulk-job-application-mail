@@ -65,6 +65,22 @@ Reply to a card with *"shorter"* or *"mention my computer-vision project"* to ge
 
 ## Features
 
+Search includes public LinkedIn posts and feed updates as well as job listings.
+When a qualifying hiring post explicitly mentions an application email, the agent
+verifies it against that specific result and shows it with the source URL on the
+Telegram card, preferring it over generic website contacts. Search snippets are
+preserved when LinkedIn returns a sign-in page. Posts unavailable to public search
+cannot be discovered. Company filters, duplicate handling, and Send/Rewrite/Skip
+approval remain unchanged; website email discovery remains the fallback.
+
+Discovery rotates role/city/source combinations each cycle, searches the past week
+when results are exhausted, and explores pages 2–4. Seen pages become eligible for
+refresh after three days. Up to five old missing-contact or draft-generation
+failures are retried each cycle after a three-day cooldown. Sent, skipped, pending,
+blocked, and send-failed leads are not reset. Failed extraction batches remain
+available for retry. These settings improve coverage; daily volume still depends
+on public search coverage and how many companies meet the configured filters.
+
 | | |
 |---|---|
 | 🎯 **Targeted** | Small AI companies only; big-company and job-board blocklist; city filter |

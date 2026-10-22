@@ -1,6 +1,8 @@
 """SQLite store. One row per company (keyed by domain) so nobody is emailed twice."""
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+from .config import CFG
 
 from .config import DB_PATH
 
@@ -26,9 +28,17 @@ def now():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
+class ClosingConnection(sqlite3.Connection):
+    def __exit__(self, *args):
+        try:
+            return super().__exit__(*args)
+        finally:
+            self.close()
+
+
 def conn():
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    c = sqlite3.connect(DB_PATH)
+    c = sqlite3.connect(DB_PATH, factory=ClosingConnection)
     c.row_factory = sqlite3.Row
     c.executescript(SCHEMA)
     if "email_source" not in {r[1] for r in c.execute("PRAGMA table_info(leads)")}:
@@ -37,18 +47,25 @@ def conn():
 
 
 def url_seen(url):
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=CFG["search"].get("revisit_days", 3))).isoformat(timespec="seconds")
     with conn() as c:
-        return c.execute("SELECT 1 FROM seen_urls WHERE url=?", (url,)).fetchone() is not None
+        return c.execute("SELECT 1 FROM seen_urls WHERE url=? AND ts >= ?", (url, cutoff)).fetchone() is not None
 
 
 def mark_urls(urls):
     with conn() as c:
-        c.executemany("INSERT OR IGNORE INTO seen_urls VALUES (?, ?)", [(u, now()) for u in urls])
+        c.executemany("INSERT OR REPLACE INTO seen_urls VALUES (?, ?)", [(u, now()) for u in urls])
 
 
 def domain_known(domain):
     with conn() as c:
-        return c.execute("SELECT 1 FROM leads WHERE domain=?", (domain,)).fetchone() is not None
+        row = c.execute("SELECT * FROM leads WHERE domain=?", (domain,)).fetchone()
+    if row is None:
+        return False
+    retryable = not row['sent_at'] and (row['status'] in ('no_contact', 'new') or
+                (row['status'] == 'failed' and (row['error'] or '').startswith('compose:')))
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=CFG["search"].get("retry_days", 3))).isoformat(timespec="seconds")
+    return not retryable or (row['updated'] or row['created'] or '') >= cutoff
 
 
 def add_lead(**f):
@@ -57,7 +74,29 @@ def add_lead(**f):
     cols = ",".join(f)
     with conn() as c:
         cur = c.execute(f"INSERT OR IGNORE INTO leads ({cols}) VALUES ({','.join('?' * len(f))})", list(f.values()))
-        return cur.lastrowid if cur.rowcount else None
+        if cur.rowcount:
+            return cur.lastrowid
+        # Recover discovery/drafting failures only; never reset sent, skipped,
+        # pending, blocked, or send-failed records.
+        f.pop('created')
+        f.setdefault('status', 'new')
+        f['error'] = None
+        cur = c.execute(f"UPDATE leads SET {','.join(k + '=?' for k in f)} "
+                        "WHERE domain=? AND sent_at IS NULL AND "
+                        "(status IN ('no_contact', 'new') OR (status='failed' AND error LIKE 'compose:%'))",
+                        [*f.values(), f['domain']])
+        if cur.rowcount:
+            return c.execute('SELECT id FROM leads WHERE domain=?', (f['domain'],)).fetchone()[0]
+        return None
+
+
+def retry_candidates(limit=5):
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=CFG['search'].get('retry_days', 3))).isoformat(timespec='seconds')
+    with conn() as c:
+        return [dict(row) for row in c.execute(
+            "SELECT * FROM leads WHERE sent_at IS NULL AND updated < ? AND "
+            "(status IN ('no_contact', 'new') OR (status='failed' AND error LIKE 'compose:%')) "
+            "ORDER BY updated LIMIT ?", (cutoff, limit))]
 
 
 def update_lead(lead_id, **f):

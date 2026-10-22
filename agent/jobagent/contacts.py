@@ -12,7 +12,7 @@ from .search import search
 log = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-PAGES = ["", "careers", "career", "jobs", "contact", "contact-us", "about", "about-us", "join-us"]
+PAGES = ["", "careers", "career", "jobs", "contact", "contact-us", "about", "about-us", "join-us", "work-with-us", "join", "team"]
 JUNK = ("noreply", "no-reply", "example.", "sentry", "wixpress", "domain.com", "email.com", "yourname",
         "privacy", "abuse", "support@", "billing", "sales@", "press@", "legal@")
 JUNK_EXT = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
@@ -87,10 +87,25 @@ def scrape_site(domain):
 def clean_emails(emails, domain=None):
     out = []
     for e in {e.strip().strip(".").lower() for e in emails}:
-        if any(j in e for j in JUNK) or e.endswith(JUNK_EXT) or len(e) > 60 or is_blocked(e):
+        if not EMAIL_RE.fullmatch(e) or any(j in e for j in JUNK) or e.endswith(JUNK_EXT) or len(e) > 60 or is_blocked(e):
             continue
         out.append(e)
     return sorted(out, key=lambda e: rank(e, domain))
+
+
+def listed_contact(company, results):
+    """Verify a listed contact against its exact supporting result, not the batch."""
+    email = (company.get("contact_email") or "").strip().lower()
+    if not clean_emails([email]):
+        return None, None
+    source_url = company.get("source_url") or company.get("job_url")
+    for result in results:
+        if result.get("url") != source_url:
+            continue
+        text = result.get("title", "") + " " + result.get("snippet", "")
+        if email in {e.lower() for e in EMAIL_RE.findall(text)}:
+            return email, source_url
+    return None, None
 
 
 def rank(email, domain):
@@ -98,3 +113,21 @@ def rank(email, domain):
     same = 0 if domain and (host == domain or host.endswith("." + domain) or domain.endswith(host)) else 1
     tier = next((i for i, keys in enumerate(PRIORITY) if any(k in local or k in email for k in keys)), len(PRIORITY))
     return (same, tier, len(email))
+
+
+def search_email_fallback(domain, company_name=""):
+    """When direct site scraping finds no email, search public snippets for HR/careers/contact email."""
+    query = f'"{domain}" (careers OR hr OR contact OR email OR "jobs@")'
+    try:
+        results = search(query, n=5)
+    except Exception:
+        return [], {}
+    sources = {}
+    for r in results:
+        text = (r.get("title", "") + " " + r.get("snippet", "")).lower()
+        for e in EMAIL_RE.findall(text):
+            cleaned = e.strip().strip(".").lower()
+            if domain in cleaned or any(k in cleaned for k in ("hr", "career", "job", "talent", "founder", "contact", "info")):
+                sources.setdefault(cleaned, r.get("url", "web search"))
+    return clean_emails(sources, domain), sources
+

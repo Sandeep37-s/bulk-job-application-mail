@@ -23,11 +23,14 @@ profile:
 resume_path: resume/Sandeep_Kumar_Resume.pdf
 
 search:
-  cities: [Delhi, New Delhi, Noida, Greater Noida]   # leads outside these are dropped
+  cities: [Delhi, New Delhi, Noida, Greater Noida, Gurgaon, Gurugram, Delhi NCR]   # leads outside these are dropped
   every_hours: 3
-  results_per_query: 10
+  results_per_query: 20
+  revisit_days: 3             # refresh pages that can gain new openings
+  retry_days: 3               # retry missing contacts or failed draft generation
+  rotating_queries: 9        # additional role/city/source combinations per cycle
   # {city} is replaced with each entry of cities_for_queries.
-  cities_for_queries: [Delhi, Noida]
+  cities_for_queries: [Delhi, Noida, Gurgaon]
   queries:
     - AI engineer job opening startup {city}
     - GenAI engineer hiring {city} startup
@@ -41,6 +44,11 @@ search:
     - site:cutshort.io AI engineer {city}
     - site:instahyre.com AI engineer {city}
     - site:linkedin.com/jobs "AI Engineer" {city}
+    - 'site:linkedin.com/posts "AI Engineer" hiring {city}'
+    - 'site:linkedin.com/posts "GenAI" hiring {city} email'
+    - 'site:linkedin.com/feed/update "AI" hiring {city}'
+    - '{city} AI startup hiring "careers@" OR "hr@"'
+    - 'AI startup {city} jobs hiring'
 
 filters:
   max_employees: 200          # "small company" cutoff (LLM estimate)
