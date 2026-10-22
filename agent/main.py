@@ -171,9 +171,12 @@ async def cmd_run(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mine(update):
         s = db.stats()
+        usage = db.ai_usage_today()
         await update.message.reply_text(
             ("\n".join(f"{k}: {v}" for k, v in sorted(s.items())) or "Nothing yet.")
             + f"\n\nSent today: {db.sent_today()}/{SEND['daily_limit']}"
+            + f"\nAI today (UTC): {usage['calls']} calls; {usage['input_tokens']} input / {usage['output_tokens']} output tokens"
+            + f"\nUnchanged-result batches reused: {usage['cache_hits']}"
             + ("\n⏸ paused" if db.kv_get("paused") == "1" else ""))
 
 

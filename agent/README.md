@@ -81,6 +81,18 @@ blocked, and send-failed leads are not reset. Failed extraction batches remain
 available for retry. These settings improve coverage; daily volume still depends
 on public search coverage and how many companies meet the configured filters.
 
+### Avoiding repeat AI costs
+
+Successful company-extraction batches are cached in SQLite for seven days when
+their complete source text, model/deployment endpoint, and extraction instructions
+are identical. Changed content is processed immediately; expired entries are
+removed as new results are cached. Drafts and requested rewrites remain fresh.
+Set `efficiency.extraction_cache_days: 0` to disable reuse.
+The Telegram `/stats` command shows successful API response counts, input/output
+tokens, and cache hits for the current UTC day, starting from this update.
+These counters are usage indicators, not an Azure billing total: provider-side
+retries, rates, credits, and other resources affect the actual charge.
+
 | | |
 |---|---|
 | 🎯 **Targeted** | Small AI companies only; big-company and job-board blocklist; city filter |

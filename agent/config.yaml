@@ -60,6 +60,9 @@ filters:
               naukri, indeed, linkedin, glassdoor, internshala, foundit, shine, timesjobs, wellfound,
               cutshort, instahyre, hirist, iimjobs, apna, upgrad, simplilearn, coursera]
 
+efficiency:
+  extraction_cache_days: 7   # reuse identical inputs; changed posts are reprocessed
+
 sending:
   auto_send: false            # true = send without asking you. Keep false.
   daily_limit: 20             # Gmail flags accounts that cold-email a lot; stay low.

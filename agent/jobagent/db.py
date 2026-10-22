@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS leads (
     created TEXT, updated TEXT, sent_at TEXT
 );
 CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE IF NOT EXISTS extraction_cache (key TEXT PRIMARY KEY, value TEXT NOT NULL, expires TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS ai_usage (
+    day TEXT PRIMARY KEY, calls INTEGER DEFAULT 0, input_tokens INTEGER DEFAULT 0,
+    output_tokens INTEGER DEFAULT 0, cache_hits INTEGER DEFAULT 0
+);
 """
 
 
@@ -136,3 +141,32 @@ def kv_get(k, default=None):
 def kv_set(k, v):
     with conn() as c:
         c.execute("INSERT OR REPLACE INTO kv VALUES (?, ?)", (k, str(v)))
+
+
+def extraction_cache_get(key):
+    with conn() as c:
+        row = c.execute('SELECT value FROM extraction_cache WHERE key=? AND expires>?', (key, now())).fetchone()
+    return row[0] if row else None
+
+
+def extraction_cache_put(key, value, days=7):
+    expires = (datetime.now(timezone.utc) + timedelta(days=days)).isoformat(timespec='seconds')
+    with conn() as c:
+        c.execute('DELETE FROM extraction_cache WHERE expires<=?', (now(),))
+        c.execute('INSERT OR REPLACE INTO extraction_cache VALUES (?, ?, ?)', (key, value, expires))
+
+
+def record_ai_usage(calls=0, input_tokens=0, output_tokens=0, cache_hits=0):
+    day = datetime.now(timezone.utc).date().isoformat()
+    with conn() as c:
+        c.execute('INSERT INTO ai_usage VALUES (?, ?, ?, ?, ?) ON CONFLICT(day) DO UPDATE SET '
+                  'calls=calls+excluded.calls, input_tokens=input_tokens+excluded.input_tokens, '
+                  'output_tokens=output_tokens+excluded.output_tokens, cache_hits=cache_hits+excluded.cache_hits',
+                  (day, calls, input_tokens, output_tokens, cache_hits))
+
+
+def ai_usage_today():
+    with conn() as c:
+        row = c.execute('SELECT * FROM ai_usage WHERE day=?',
+                        (datetime.now(timezone.utc).date().isoformat(),)).fetchone()
+    return dict(row) if row else dict(calls=0, input_tokens=0, output_tokens=0, cache_hits=0)

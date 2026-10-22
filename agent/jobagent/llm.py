@@ -1,9 +1,11 @@
 """LLM calls: pick out companies from search results, and write the email."""
 import json
 import logging
+import hashlib
 
 from openai import AzureOpenAI, OpenAI
 
+from . import db
 from .config import CFG, env
 
 log = logging.getLogger(__name__)
@@ -22,6 +24,12 @@ def ask_json(system, user, temperature=0.2):
         model=_model, temperature=temperature, response_format={"type": "json_object"},
         messages=[{"role": "system", "content": system}, {"role": "user", "content": user}],
     )
+    try:
+        usage = resp.usage
+        db.record_ai_usage(calls=1, input_tokens=usage.prompt_tokens if usage else 0,
+                           output_tokens=usage.completion_tokens if usage else 0)
+    except Exception:
+        log.warning('Could not record AI usage', exc_info=True)
     return json.loads(resp.choices[0].message.content)
 
 
@@ -52,10 +60,25 @@ Only include facts supported by the results. If nothing qualifies return {{"comp
 def extract_companies(results):
     if not results:
         return []
+    # Stable ordering lets identical source batches share one result across queries.
+    results = sorted(results, key=lambda r: (r['url'], r['title'], r['snippet']))
     text = "\n\n".join(f"[{i}] {r['title']}\nURL: {r['url']}\n{r['snippet']}" for i, r in enumerate(results))
     system = EXTRACT_SYSTEM.format(cities=", ".join(CFG["search"]["cities"]))
+    cache_days = CFG.get('efficiency', {}).get('extraction_cache_days', 7)
+    key = hashlib.sha256(json.dumps([str(_client.base_url), _model, system, text]).encode()).hexdigest()
     try:
-        return ask_json(system, text).get("companies", [])
+        if cache_days > 0:
+            cached = db.extraction_cache_get(key)
+            if cached is not None:
+                db.record_ai_usage(cache_hits=1)
+                return json.loads(cached)
+        out = ask_json(system, text)
+        companies = out.get('companies')
+        if not isinstance(companies, list) or not all(isinstance(c, dict) for c in companies):
+            raise ValueError('Invalid company extraction response')
+        if cache_days > 0:
+            db.extraction_cache_put(key, json.dumps(companies), cache_days)
+        return companies
     except Exception as e:
         log.warning("extraction failed: %s", e)
         raise
