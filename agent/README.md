@@ -1,228 +1,253 @@
-## Deadline-aware sending
-
-Hiring applications with verified deadlines are ordered earliest-deadline-first,
-then hiring applications with unknown deadlines, then AI-company outreach.
-Source-backed absolute dates (ISO or English month, including year) are parsed;
-date-only deadlines mean end-of-day India time. Ambiguous, relative, explicit-time
-or foreign-timezone deadlines are held for review, not guessed. Source quotes and
-links are retained. Expired applications are skipped before SMTP and marked expired.
-An hourly bounded refresh checks up to five queued job sources, no more than once
-per source every six hours; legacy hiring drafts wait for source verification.
-This uses existing extraction caching but can add AI calls when source text changes.
-Blocked or inaccessible sources cannot provide reliable deadlines.
-The sender estimates queue slots using the 40-attempt daily limit (resets at midnight IST)
-and 36-minute gap. A one-time Telegram alert includes the job link, contact, quoted deadline and
-estimated slot if capacity may miss a deadline (30-minute safety margin), or a
-reported deadline needs review. Use /skip ID after applying manually through the
-job link to avoid a later queued email. Sending limits are never bypassed. Unknown
-or unreported deadlines and jobs closing early cannot be guaranteed.
-
-## Hiring-first queue
-
-Eligible advertised AI/ML openings are sent before speculative company outreach.
-When none are sendable, verified AI/ML companies without an advertised opening
-can receive an inquiry specifically about AI/ML engineering opportunities. An
-unrelated vacancy is never used as a fallback application. Fallback sends wait
-while discovery is running so newly found hiring applications get priority.
-Within each priority, the oldest queued lead is sent first. The 40-attempt cap
-and 36-minute spacing still apply. Overflow remains pending across days and
-restarts and are sent first the next day. A persistent hiring
-backlog can delay company outreach. Historical strict-hiring-only notes below
-are superseded by this queue policy.
-
-## Current personal deployment: automatic AI/ML applications
-
-Automatic sending is enabled, capped at 40 attempts per India calendar day
-(resets at midnight IST), spaced at least 36 minutes apart. Only advertised technical
-AI/ML roles whose title is found in their source result qualify. Office, HR,
-sales, marketing and general unrelated roles are excluded even at AI companies.
-Legacy drafts without the new source validation are not automatically sent.
-A minute-by-minute worker drains eligible pending drafts across search cycles.
-
-To save AI cost the agent sleeps once the day is covered: after 40 attempts it
-stops searching, drafting and deadline refreshes until midnight IST, and it also
-skips new searches while queued sendable drafts already fill the rest of the day.
-Drafts held for deadline review do not count toward that. `/run` searches anyway;
-`/stats` shows whether the agent is sleeping. The VM's hourly cost is unchanged.
-SMTP failures pause sending and retain uncertain deliveries for manual review;
-check Gmail Sent before using /resume. /pause stops discovery and sending.
-Successful sends produce a short Telegram message via the normal free Bot API;
-no paid broadcasts or additional AI calls are used for notifications.
-Forty is a ceiling, not a guaranteed daily target or a guarantee against spam
-classification. The historical approval-mode documentation below applies when
-`auto_send` is disabled; sending still requires the current role validation.
-
 <div align="center">
 
 <img src="assets/hero.svg" alt="AI Job-Hunt Agent" width="100%">
 
-**Finds small AI startups in Delhi & Noida, writes each one a tailored application, and sends it from your Gmail — but only after you tap ✅ on Telegram.**
+### Finds AI/ML openings in Delhi NCR, skips senior and fake posts, and sends a tailored application from your Gmail — 40 a day, on autopilot.
 
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
-![Azure OpenAI](https://img.shields.io/badge/Azure%20OpenAI-gpt--4.1--mini-0078D4?logo=microsoftazure&logoColor=white)
-![Telegram](https://img.shields.io/badge/Telegram-approval%20bot-26A5E4?logo=telegram&logoColor=white)
-![Gmail](https://img.shields.io/badge/Gmail-SMTP-EA4335?logo=gmail&logoColor=white)
-![Runs on](https://img.shields.io/badge/runs%20on-Azure%20VM-0078D4?logo=ubuntu&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Azure OpenAI](https://img.shields.io/badge/Azure_OpenAI-gpt--4.1--mini-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Telegram](https://img.shields.io/badge/Telegram-bot-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)
+![Gmail](https://img.shields.io/badge/Gmail-SMTP-EA4335?style=for-the-badge&logo=gmail&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-state-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
+
+![tests](https://img.shields.io/badge/tests-41_passing-2ea44f?style=flat-square)
+![runs on](https://img.shields.io/badge/runs_on-Azure_VM_·_systemd-0078D4?style=flat-square)
+![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
+
+[How it works](#-how-it-works) · [Screening](#-screening-rules) · [Sending](#-sending--queue) · [Telegram](#-telegram-commands) · [Quick start](#-quick-start) · [Deploy](#-deploy-to-azure) · [FAQ](#-faq)
 
 </div>
 
 ---
 
-## Why
-
-Big companies route applications through portals and ATS filters. Small AI startups often don't have a hiring pipeline at all — a short, specific email to the right inbox gets read. Finding those startups, their real contact address and what they build, then writing a non-generic email for each, is hours of work a day. This agent does that part, and leaves the decision to you.
-
-## How it works
-
-<p align="center"><img src="assets/pipeline.svg" alt="Every 3 h → web search → AI filter → company site → tailored draft → you approve → sent" width="100%"></p>
-
-<details>
-<summary>Detailed flow</summary>
-
-```mermaid
-flowchart LR
-    A[⏰ Every 3 h] --> B[🔎 Web search<br/>job posts · startup lists ·<br/>Wellfound · Cutshort · LinkedIn]
-    B --> C[🧠 LLM picks companies<br/>AI-focused · &lt;200 people ·<br/>Delhi / Noida only]
-    C --> D[🌐 Visit company site<br/>read what they build ·<br/>find careers@ / hr@ email]
-    D --> E[✍️ LLM drafts email<br/>matched to their domain,<br/>only real facts from your profile]
-    E --> F{📱 Telegram card}
-    F -- ✅ Send --> G[📧 Gmail + resume.pdf]
-    F -- 🔁 Rewrite --> E
-    F -- ❌ Skip --> H[🗂 never shown again]
-```
-
-</details>
-
-## Your approval card
+## ✨ Highlights
 
 <table>
 <tr>
-<td width="50%"><img src="assets/telegram-card.svg" alt="Telegram approval card: company, reason, verified address, draft, Send/Rewrite/Skip" width="100%"></td>
-<td>
+<td width="50%" valign="top">
 
-Every card tells you:
+**🎯 Only the right jobs**<br>
+AI Engineer, ML, GenAI, LLM, NLP, computer vision, MLOps and data-science roles. Office, HR and sales jobs are dropped — even at AI companies.
 
-- **Why** this company was picked: 🟢 *hiring for a role*, or 🔵 *AI company, writing to HR*
-- **What they build**, so you can judge fit in two seconds
-- **Where the address came from**: a link to the page it was found on
-- The **full draft**, with your resume attached
+</td>
+<td width="50%" valign="top">
 
-Then tap **✅ Send**, **🔁 Rewrite** or **❌ Skip**.
+**🧑‍🎓 Matches your level**<br>
+0–2 years, fresher or junior roles are sent. Senior / Lead / 3+ years roles are skipped before any email is written.
 
-*(Example company; illustration only.)*
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**🛡️ Scam-aware**<br>
+Posts that ask for fees, promise guaranteed jobs or quick money, or accept applications only on WhatsApp are rejected.
+
+</td>
+<td valign="top">
+
+**⏳ Deadline-first queue**<br>
+Jobs closing soonest go out first. Expired ones are never sent, and Telegram warns you if one might miss its deadline.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**🐢 Inbox-safe pacing**<br>
+At most 40 emails per day, at least 36 minutes apart, never the same address twice. Pauses itself on any Gmail error.
+
+</td>
+<td valign="top">
+
+**💸 Cost-aware**<br>
+Sleeps once the day's 40 are covered, caches repeated AI work, and tracks token usage in `/stats`.
 
 </td>
 </tr>
 </table>
 
-Reply to a card with *"shorter"* or *"mention my computer-vision project"* to get a rewrite, or with `to: founder@company.com` to change the recipient.
+## 🔁 How it works
 
-## Features
+<p align="center"><img src="assets/pipeline.svg" alt="Every 3 h → web search → AI filter → screened → company site → tailored draft → paced send" width="100%"></p>
 
-Search includes public LinkedIn posts and feed updates as well as job listings.
-When a qualifying hiring post explicitly mentions an application email, the agent
-verifies it against that specific result and shows it with the source URL on the
-Telegram card, preferring it over generic website contacts. Search snippets are
-preserved when LinkedIn returns a sign-in page. Posts unavailable to public search
-cannot be discovered. Company filters, duplicate handling, and Send/Rewrite/Skip
-approval remain unchanged; website email discovery remains the fallback.
+```mermaid
+flowchart LR
+    A["⏰ Every 3 h"] --> B["🔎 Web search<br/>job boards · startup lists<br/>public LinkedIn posts"]
+    B --> C["🧠 AI reads results<br/>AI/ML role · Delhi NCR<br/>&lt;200 people"]
+    C --> D{"🛡️ Screen"}
+    D -- "senior / 3+ yrs" --> X["⏭️ skipped"]
+    D -- "fee / scam wording" --> X
+    D -- "passes" --> E["🌐 Company site<br/>real careers@ / hr@"]
+    E --> F["✍️ Tailored draft<br/>only real facts"]
+    F --> Q[("📥 Queue<br/>hiring first ·<br/>earliest deadline")]
+    Q --> G["📧 Gmail + resume<br/>40/day · 36 min gap"]
+    G --> T["📱 Telegram ping"]
+```
 
-Discovery rotates role/city/source combinations each cycle, searches the past week
-when results are exhausted, and explores pages 2–4. Seen pages become eligible for
-refresh after three days. Up to five old missing-contact or draft-generation
-failures are retried each cycle after a three-day cooldown. Sent, skipped, pending,
-blocked, and send-failed leads are not reset. Failed extraction batches remain
-available for retry. These settings improve coverage; daily volume still depends
-on public search coverage and how many companies meet the configured filters.
+**A day in the life**
 
-### Avoiding repeat AI costs
+1. Every 3 hours the agent searches, screens and drafts — unless today's 40 emails are already sent or already waiting in the queue.
+2. A worker checks the queue every minute and sends the next email once 36 minutes have passed.
+3. After each email you get a short Telegram message. After the 40th: *"Sleeping until midnight IST."*
+4. At midnight IST the limit resets. Leftover drafts go out first, then a fresh search starts.
 
-Successful company-extraction batches are cached in SQLite for seven days when
-their complete source text, model/deployment endpoint, and extraction instructions
-are identical. Changed content is processed immediately; expired entries are
-removed as new results are cached. Drafts and requested rewrites remain fresh.
-Set `efficiency.extraction_cache_days: 0` to disable reuse.
-The Telegram `/stats` command shows successful API response counts, input/output
-tokens, and cache hits for the current UTC day, starting from this update.
-These counters are usage indicators, not an Azure billing total: provider-side
-retries, rates, credits, and other resources affect the actual charge.
+## 🚦 Screening rules
+
+| Check | ✅ Sent | ⏭️ Skipped |
+|---|---|---|
+| **Role** | AI / ML / GenAI / LLM / NLP / CV / MLOps / data science | HR, sales, marketing, office, support, unrelated tech |
+| **Title** | anything else, incl. *Junior*, *Intern* | *Senior*, *Sr.*, *Lead*, *Principal*, *Staff*, *Manager* |
+| **Experience** | 0–2 years, fresher, entry-level, or not mentioned | 3+ years (e.g. "3–5 yrs", "5+ years", "minimum 4 yrs") |
+| **Fake-post signals** | — | registration / training / security fee or deposit · "pay before joining" · guaranteed job · no interview · "earn ₹X per day" · task-based income · WhatsApp/Telegram-only applications |
+| **Contact** | company-domain address (`hr@company.com`) | only a personal Gmail/Yahoo/Outlook → **held for you on Telegram** |
+| **Company** | own website, small, AI-focused, Delhi NCR | job boards, big companies, blocklist, `never_contact` |
+
+> [!NOTE]
+> Facts the AI extracts — experience lines, deadlines, email addresses — are only used if they appear **word-for-word in the source page**. An invented quote can't skip a good job or send to a made-up address.
+
+## 📬 Sending & queue
 
 | | |
 |---|---|
-| 🎯 **Targeted** | Small AI companies only; big-company and job-board blocklist; city filter |
-| ✋ **Human-in-the-loop** | Nothing is sent until you approve it on Telegram |
-| 🧾 **No invented facts** | Drafts may only use the facts listed in `config.yaml` |
-| 📬 **Real addresses** | Emails are scraped from the company's own site; LLM-reported addresses are dropped unless they appear verbatim in the source |
-| 🔁 **Never twice** | One row per company domain in SQLite — nobody is contacted twice |
-| 🐢 **Inbox-safe** | Daily cap (20) and a gap between sends to keep your Gmail out of spam |
-| ☁️ **Always on** | systemd service on a free-tier Azure VM, no inbound ports |
+| **Daily limit** | 40 attempts per India calendar day, resets at midnight IST |
+| **Spacing** | at least 36 minutes between emails |
+| **Order** | 🟢 advertised openings (earliest verified deadline first) → 🔵 outreach to AI companies with no posted opening |
+| **Overflow** | stays queued and goes out first the next day |
+| **Deadlines** | expired jobs are skipped; unclear deadlines are held for review; at-risk jobs trigger a Telegram alert with the job link |
+| **Errors** | any SMTP error pauses sending — check Gmail *Sent*, then `/resume` |
+| **Sleep** | no searching or AI drafting once today's 40 are sent or already queued |
 
-## Can someone use this repo to send email from my account?
+## 📱 Telegram commands
 
-**No.** The repo contains code only. Everything that could send mail is in `agent/.env`, which is git-ignored and exists only on your machine and your server:
+| Command | What it does |
+|---|---|
+| `/stats` | counts by status, emails sent today, AI calls and tokens, sleep state |
+| `/run` | search now, even while sleeping |
+| `/pending` | show drafts waiting |
+| `/skip <id>` | remove a queued email (e.g. you applied through the job link) |
+| `/pause` · `/resume` | stop / restart searching and sending |
 
-- the **Gmail app password** — without it, SMTP login fails;
-- the **Telegram bot token** and **your chat id** — the bot ignores every chat except yours, so a stranger who finds the bot can't trigger a send;
-- the **Azure OpenAI key**.
+Held drafts arrive as a card with **✅ Send · 🔁 Rewrite · ❌ Skip**. Reply to a card with *"shorter"* or *"mention my computer-vision project"* to rewrite it, or `to: founder@company.com` to change the recipient.
 
-Anyone who clones the repo has to supply their own Gmail, bot and LLM keys, and can only ever send from *their* account. If a secret ever leaks: revoke the app password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), send `/revoke` to @BotFather, and regenerate the Azure key.
+<details>
+<summary><b>🖼️ What a card looks like</b></summary>
+<br>
+<p align="center"><img src="assets/telegram-card.svg" alt="Telegram card: company, reason, verified address, draft, Send/Rewrite/Skip" width="60%"></p>
+<p align="center"><i>Example company; illustration only.</i></p>
+</details>
 
-## Use it yourself
+## 🚀 Quick start
 
 ```bash
 cd agent
 pip install -r requirements.txt
-cp .env.example .env          # fill in Gmail app password, Telegram token, LLM key
-python main.py --whoami       # message your bot first; prints your chat id → .env
+cp .env.example .env          # Gmail app password, Telegram token, LLM key
+python main.py --whoami       # message your bot first → prints your chat id for .env
 python main.py --dry-run      # one search cycle, prints drafts, sends nothing
-python main.py                # run the bot + scheduler
+python main.py                # bot + scheduler
+python -m pytest -q           # run the tests
 ```
 
-Edit `config.yaml` for your own profile facts, cities, search queries and limits, and `resume/build_resume.py` for your resume (`python resume/build_resume.py` rebuilds the PDF).
+Then make it yours:
 
-**Telegram commands:** `/run` search now · `/pending` drafts waiting · `/stats` · `/pause` · `/resume`
+- **`config.yaml`** — profile facts (the only facts drafts may use), cities, search queries, filters, sending limits.
+- **`resume/build_resume.py`** — your resume. Run `python resume/build_resume.py` to rebuild the PDF.
 
-### Deploy to Azure
+<details>
+<summary><b>⚙️ Key settings in <code>config.yaml</code></b></summary>
+
+```yaml
+search:
+  cities: [Delhi, Noida, Gurgaon, ...]   # leads outside these are dropped
+  every_hours: 3
+filters:
+  max_employees: 200                     # "small company" cutoff
+  never_contact: [...]                   # never emailed, matched anywhere
+  blocklist: [google, microsoft, ...]    # big companies and job boards
+sending:
+  auto_send: true                        # false = approve every email on Telegram
+  daily_limit: 40
+  min_gap_seconds: 2160                  # 36 minutes
+```
+
+</details>
+
+## 🌐 Deploy to Azure
 
 ```bash
 az login
-bash deploy/azure/deploy.sh   # creates the VM on first run; later runs push code + .env and restart
+bash deploy/azure/deploy.sh   # first run creates the VM; later runs push code + .env and restart
 ```
 
-Creates an Ubuntu VM (free-tier size), installs the agent as a systemd service, and opens no inbound ports — the bot only makes outbound connections.
+This creates a small Ubuntu VM and installs the agent as a `systemd` service. No inbound ports are opened — the bot only makes outbound connections.
 
-## Project layout
+## 🗂️ Project layout
 
-```
+```text
 agent/
-  main.py              Telegram bot, approval buttons, scheduler
-  config.yaml          profile facts, cities, queries, filters, send limits
-  jobagent/
-    search.py          DuckDuckGo / Tavily search + page fetch
-    llm.py             company extraction and email drafting (Azure OpenAI or any OpenAI-compatible API)
-    contacts.py        website discovery, email scraping and ranking, blocklists
-    pipeline.py        one search → filter → scrape → draft cycle
-    mailer.py          Gmail SMTP with resume attachment
-    db.py              SQLite: companies, statuses, seen URLs
-  resume/              resume source + generated PDF
+├── main.py            Telegram bot, scheduler, sleep logic, alerts
+├── config.yaml        profile facts, cities, queries, filters, limits
+├── jobagent/
+│   ├── search.py      free multi-layer web search (+ optional Tavily), page fetch
+│   ├── llm.py         company extraction and email drafting (Azure OpenAI / any OpenAI-compatible API)
+│   ├── screening.py   experience level, fake-post signals, personal-address hold
+│   ├── contacts.py    company website discovery, email scraping and ranking
+│   ├── pipeline.py    one search → filter → screen → scrape → draft cycle
+│   ├── deadlines.py   source-backed deadlines, queue slot projection
+│   ├── sending.py     daily cap, spacing, duplicate and safety checks
+│   ├── mailer.py      Gmail SMTP with resume attachment
+│   └── db.py          SQLite: leads, statuses, seen URLs, AI usage, cache
+├── resume/            resume source + generated PDF
+└── tests/             41 unit tests
 deploy/azure/          VM deploy script + systemd unit
 ```
 
-## Experience level and fake-post screening
+## ❓ FAQ
 
-Hiring posts (LinkedIn posts included) are screened before any website scraping
-or email drafting, so rejected posts cost no further AI calls:
+<details>
+<summary><b>Can someone use this repo to send email from my account?</b></summary>
+<br>
 
-- Sent: 0-2 years, fresher/entry-level/junior, or experience not mentioned.
-- Skipped: 3+ years, or Senior/Sr/Lead/Principal/Staff/Manager in the title. The
-  experience quote must appear in the source text; invented quotes are ignored.
-- Rejected as fake: posts asking for a registration/training/security fee or
-  deposit, promising a guaranteed job or no interview, quick daily/weekly
-  earnings, task-based income, or WhatsApp/Telegram-only applications.
-- A company-domain address found on the company's own site is preferred over a
-  personal Gmail/Yahoo/Outlook address in a post. If only a personal address
-  exists, the draft is held and posted to Telegram with Send/Skip instead of
-  being sent automatically.
+**No.** The repo is code only. Everything that can send mail lives in `agent/.env`, which is git-ignored:
 
-Queued drafts get the same title, experience and personal-address checks before
-sending; the hourly source refresh also re-checks them for fee/scam wording.
+- the **Gmail app password** — without it, SMTP login fails;
+- the **Telegram bot token** and **your chat id** — the bot ignores every other chat;
+- the **Azure OpenAI key**.
+
+If a secret ever leaks: revoke the app password at [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords), send `/revoke` to @BotFather, and regenerate the Azure key.
+</details>
+
+<details>
+<summary><b>Does it log in to LinkedIn?</b></summary>
+<br>
+
+No. It finds **public** LinkedIn posts through web search and reads what is publicly visible. Logging in to scrape LinkedIn breaks its terms and can get the account banned. Posts that are not indexed, are visible only when logged in, or say "DM me" can't be picked up.
+</details>
+
+<details>
+<summary><b>What does it cost to run?</b></summary>
+<br>
+
+The VM is billed per hour whether or not it is busy. AI cost comes from reading search results and writing drafts. That stops once the day is covered, and identical inputs are cached for 7 days. Sending and Telegram messages make no AI calls. `/stats` shows the day's calls and tokens; these are usage indicators, not your Azure bill.
+</details>
+
+<details>
+<summary><b>Will Gmail mark me as a spammer?</b></summary>
+<br>
+
+Pacing, a modest daily volume, verified addresses and personalised content all help, but no limit guarantees inbox placement. Forty is a ceiling, not a target.
+</details>
+
+<details>
+<summary><b>Can it catch every fake job?</b></summary>
+<br>
+
+No. It catches the common patterns. A scammer with a real-looking website and no fee wording can still get through. **A real employer never asks you to pay to apply.**
+</details>
+
+---
+
+<div align="center">
+<sub>Built with Python · Azure OpenAI · python-telegram-bot · APScheduler · SQLite · MIT licensed</sub>
+</div>

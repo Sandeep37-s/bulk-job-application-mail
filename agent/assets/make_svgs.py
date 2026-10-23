@@ -30,7 +30,7 @@ def hero():
     lines = ["> searching Delhi & Noida for small AI startups...",
              "> reading their websites, finding the HR email...",
              "> writing an email that fits what each one builds...",
-             "> draft ready - waiting for your tap on Telegram"]
+             "> screened, queued by deadline - sending 40 a day"]
     cw, fs, y = 12.2, 20, 182
     parts, per = [], 4.0
     total = per * len(lines)
@@ -74,7 +74,7 @@ def hero():
   <rect x="0.5" y="0.5" width="{W - 1}" height="{H - 1}" rx="16" fill="none" stroke="#30363d"/>
   {dots}
   <text x="{W / 2}" y="86" text-anchor="middle" font-family="{SANS}" font-size="46" font-weight="800" fill="url(#title-spread)">AI Job-Hunt Agent</text>
-  <text x="{W / 2}" y="122" text-anchor="middle" font-family="{SANS}" font-size="17" fill="#8b949e">Finds small AI startups · writes a tailored email · sends only after you approve</text>
+  <text x="{W / 2}" y="122" text-anchor="middle" font-family="{SANS}" font-size="17" fill="#8b949e">Finds AI/ML openings · screens out senior &amp; fake posts · sends 40 tailored emails a day</text>
   <rect x="120" y="150" width="660" height="48" rx="10" fill="#010409" stroke="#30363d"/>
   {"".join(parts)}
 </svg>'''
@@ -84,10 +84,10 @@ def hero():
 # ---------------------------------------------------------------- pipeline
 def pipeline():
     W, H = 900, 210
-    nodes = [("⏰", "Every 3 h", "on schedule"), ("🔎", "Web search", "jobs · startup lists"),
-             ("🧠", "AI filter", "small · AI · Delhi/Noida"), ("🌐", "Company site", "real HR email"),
-             ("✍️", "Tailored draft", "fits their domain"), ("📱", "You approve", "on Telegram"),
-             ("📧", "Sent", "+ resume.pdf")]
+    nodes = [("⏰", "Every 3 h", "sleeps when full"), ("🔎", "Web search", "jobs · LinkedIn posts"),
+             ("🧠", "AI filter", "AI/ML · Delhi NCR"), ("🛡️", "Screened", "0–2 yrs · no scams"),
+             ("🌐", "Company site", "real HR email"), ("✍️", "Tailored draft", "fits their domain"),
+             ("📧", "Paced send", "40/day + resume")]
     x0, x1, y, total, travel = 70, 830, 78, 8.0, 0.85
     step = (x1 - x0) / (len(nodes) - 1)
     out = []
@@ -127,7 +127,7 @@ def pipeline():
     <animateMotion dur="{total}s" repeatCount="indefinite" path="M{x0},{y} H{x1}" keyPoints="0;1;1" keyTimes="0;{travel};1" calcMode="linear"/>
     <animate attributeName="opacity" dur="{total}s" repeatCount="indefinite" keyTimes="0;{travel};{travel + 0.02};1" values="1;1;0;0"/>
   </circle>
-  <text x="{W / 2}" y="{H - 14}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="#6e7681">nothing is sent until you tap ✅</text>
+  <text x="{W / 2}" y="{H - 14}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="#6e7681">deadline-first queue · 36 min between sends · Telegram ping after each email</text>
 </svg>'''
     (OUT / "pipeline.svg").write_text(svg, encoding="utf-8")
 

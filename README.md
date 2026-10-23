@@ -1,66 +1,120 @@
+<div align="center">
+
 <a href="agent/README.md"><img src="agent/assets/hero.svg" alt="AI Job-Hunt Agent" width="100%"></a>
+
+# Bulk Job-Application Mail
+
+**Two ways to send job applications from your own Gmail — an autonomous AI agent, and a bulk-send web app.**
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![Azure OpenAI](https://img.shields.io/badge/Azure_OpenAI-0078D4?style=for-the-badge&logo=microsoftazure&logoColor=white)
+![Telegram](https://img.shields.io/badge/Telegram-26A5E4?style=for-the-badge&logo=telegram&logoColor=white)
+![Next.js](https://img.shields.io/badge/Next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![Gmail](https://img.shields.io/badge/Gmail-EA4335?style=for-the-badge&logo=gmail&logoColor=white)
+
+![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
+![agent tests](https://img.shields.io/badge/agent_tests-41_passing-2ea44f?style=flat-square)
+
+</div>
+
+---
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 🤖 [AI Job-Hunt Agent](agent/README.md)
+
+Runs 24/7 on an Azure VM. Finds AI/ML openings and AI startups in Delhi NCR, screens out senior roles and fake posts, writes a tailored email for each, and sends **40 a day** from your Gmail, the soonest deadline first.
+
+`Python` · `Azure OpenAI` · `Telegram` · `SQLite`
+
+**[→ Read the agent docs](agent/README.md)**
+
+</td>
+<td width="50%" valign="top">
+
+### 📨 Dispatch web app
+
+Upload or paste a recipient list, write one template with `{{name}}` / `{{company}}` / `{{position}}`, preview every email, attach your resume, and send in bulk from the browser.
+
+`Next.js` · `React` · `Gmail API` · `NextAuth`
+
+**[→ Jump to Dispatch](#-dispatch--bulk-email-from-your-browser)**
+
+</td>
+</tr>
+</table>
 
 <p align="center"><img src="agent/assets/pipeline.svg" alt="How the agent works" width="100%"></p>
 
-# Dispatch — Bulk Job-Application Email Sender
+## 🤖 Agent at a glance
 
-> **Two tools in this repo**
->
-> | | |
-> |---|---|
-> | 🤖 **[AI Job-Hunt Agent](agent/README.md)** | Runs 24/7, finds small AI startups in Delhi/Noida, drafts a tailored email for each and sends it from your Gmail after you approve it on Telegram. *(Python · Azure OpenAI · Telegram)* |
-> | ✉️ **Dispatch web app** (below) | Paste or upload a recipient list and send personalized applications in bulk from the browser. *(Next.js · Gmail API)* |
+| | |
+|---|---|
+| 🎯 **Relevant roles only** | AI / ML / GenAI / LLM / NLP / CV / MLOps / data science. No office, HR or sales jobs |
+| 🧑‍🎓 **Right level** | 0–2 years or fresher. Senior, Lead and 3+ year roles are skipped before drafting |
+| 🛡️ **Fake-post filter** | fee requests, guaranteed jobs, "earn ₹X/day", WhatsApp-only applications are rejected |
+| ⏳ **Deadline-first** | earliest deadline sent first; expired jobs never sent; Telegram alert if one may be missed |
+| 🐢 **Inbox-safe** | 40/day, 36 min apart, never the same address twice, auto-pause on Gmail errors |
+| 💸 **Cost-aware** | sleeps once the day is covered; caches repeated AI work |
 
-Send personalized job-application emails to many recruiters, one click at a
-time, directly from your own Gmail account.
+```bash
+cd agent && pip install -r requirements.txt && cp .env.example .env
+python main.py --dry-run     # one search cycle, sends nothing
+```
 
-Built with **Next.js, React, TypeScript, Tailwind CSS, NextAuth.js, and the
-Gmail API**.
-
----
-
-## Features
-
-- Google OAuth 2.0 authentication
-- Uses the Gmail API with the `gmail.send` scope
-- Sends emails directly from the user's Gmail account
-- Paste multiple email addresses at once
-- Import recipients using CSV
-- Personalized email templates
-- Supports `{{name}}`, `{{company}}`, and `{{position}}` placeholders
-- Automatic, conservative greeting handling
-- Resume and additional file attachments
-- Live email preview before sending, editable per recipient
-- Configurable delay between emails
-- Duplicate email detection and address validation
-- Send history with search
-- Failed-email retry
-- CSV export of send history
-- Daily sending counter with limit warning
-- Local browser storage using `localStorage`
-- No database required for local usage
+Full setup, screening rules, Telegram commands and Azure deploy are in **[agent/README.md](agent/README.md)**.
 
 ---
 
-## Google Cloud setup (OAuth + Gmail API)
+## 📨 Dispatch — bulk email from your browser
+
+Send personalised job-application emails to many recruiters, one click at a time, directly from your own Gmail account.
+
+### Features
+
+| | |
+|---|---|
+| 🔐 **Sign in with Google** | OAuth 2.0, only the `gmail.send` scope; sends from your own account |
+| 📋 **Recipients** | paste many addresses or import a CSV; duplicate and invalid rows flagged |
+| 📝 **Templates** | `{{name}}`, `{{company}}`, `{{position}}` placeholders; conservative automatic greetings |
+| 📎 **Attachments** | resume plus extra files on every email |
+| 👀 **Preview** | step through each recipient's exact email and edit before sending |
+| ⏱️ **Pacing** | configurable delay, daily counter with limit warning |
+| 🗂️ **History** | searchable send history, one-click retry of failures, CSV export |
+| 💾 **No database** | everything stays in your browser's `localStorage` |
+
+### Quick start
+
+```bash
+npm install
+npm run dev             # http://localhost:3000
+```
+
+Create a `.env` in the repo root (see *Environment variables* below). You need a Google Cloud OAuth client with the Gmail API enabled first. It takes about five minutes:
+
+<details>
+<summary><b>☁️ Google Cloud setup (OAuth + Gmail API)</b></summary>
 
 The application uses **Google OAuth 2.0** and the **Gmail API** to send
 emails through the user's Gmail account. You must configure Google Cloud
 before running the app — this takes about five minutes.
 
-### 1. Create a Google Cloud project
+#### 1. Create a Google Cloud project
 
 Open [console.cloud.google.com](https://console.cloud.google.com/) and
 create a new project, e.g. `Dispatch Email Sender`. Make sure the new
 project is selected before continuing.
 
-### 2. Enable the Gmail API
+#### 2. Enable the Gmail API
 
 **Google Cloud Console → APIs & Services → Library** → search `Gmail API`
 → **Enable**. If it already says "Manage" instead of "Enable", it's
 already on.
 
-### 3. Configure the OAuth consent screen
+#### 3. Configure the OAuth consent screen
 
 Go to **Google Cloud Console → Google Auth Platform**. Depending on your
 console version this is organized into sections like *Branding*,
@@ -85,7 +139,7 @@ console version this is organized into sections like *Branding*,
   > `gmail.compose` — the code calls `gmail.users.messages.send`, which
   > needs the send scope specifically.
 
-### 4. Create an OAuth Client ID
+#### 4. Create an OAuth Client ID
 
 **Google Cloud Console → APIs & Services → Credentials → + Create
 Credentials → OAuth client ID**.
@@ -110,9 +164,10 @@ Credentials → OAuth client ID**.
 Copy the generated **Client ID** and **Client Secret** — you'll need them
 in `.env` below.
 
----
+</details>
 
-## Environment variables
+<details>
+<summary><b>🔑 Environment variables</b></summary>
 
 Create a `.env` file in the project root:
 
@@ -134,12 +189,12 @@ If `openssl` isn't available (e.g. some Windows setups), generate a long
 random string with any trusted method — a password manager's generator
 works fine — and use that instead.
 
----
+</details>
 
-## Installation
+<details>
+<summary><b>📦 Installation</b></summary>
 
 ```bash
-cd bulk-email-sender
 npm install
 npm run dev
 ```
@@ -148,13 +203,14 @@ Open `http://localhost:3000`, click **Sign in with Google**, and sign in
 with the account you added as a **Test user**. Accept the "Send email on
 your behalf" permission when prompted.
 
----
+</details>
 
-## OAuth troubleshooting
+<details>
+<summary><b>🩺 OAuth troubleshooting</b></summary>
 
 These are the actual errors you're likely to hit and how to fix each one.
 
-### `Error 400: redirect_uri_mismatch`
+#### `Error 400: redirect_uri_mismatch`
 
 **Cause:** the redirect URI NextAuth sends doesn't exactly match what's
 registered in Google Cloud.
@@ -168,7 +224,7 @@ registered in Google Cloud.
 3. Save in Google Cloud, then restart `npm run dev` (env and OAuth client
    changes aren't picked up by hot-reload).
 
-### `Error 403: access_denied`
+#### `Error 403: access_denied`
 
 **Cause:** the Google account you're signing in with isn't registered as
 a test user while the app is in Testing mode.
@@ -176,7 +232,7 @@ a test user while the app is in Testing mode.
 **Fix:** Google Auth Platform → Audience → Test users → add that Gmail
 address → sign in again.
 
-### `Request had insufficient authentication scopes` / `Insufficient Permission` (Gmail API 403)
+#### `Request had insufficient authentication scopes` / `Insufficient Permission` (Gmail API 403)
 
 This is the one that shows up as a `500` from `/api/send` with a Gmail
 `GaxiosError: Insufficient Permission` in your terminal. It means the
@@ -208,7 +264,7 @@ without the `gmail.send` scope.
 > you'll keep hitting `insufficient_scope` even though the config looks
 > right.
 
-### Debugging `/api/send` 500s in general
+#### Debugging `/api/send` 500s in general
 
 A bare `POST /api/send 500` in your terminal doesn't show *why* Gmail
 rejected the request. `app/api/send/route.ts` logs the full Gmail API
@@ -218,9 +274,10 @@ in your terminal output, and check the `error.response.data.error`
 field for Gmail's actual message (e.g. `insufficientPermissions`,
 `invalid_grant`, rate-limit errors, etc.).
 
----
+</details>
 
-## Troubleshooting checklist
+<details>
+<summary><b>✅ Troubleshooting checklist</b></summary>
 
 If sign-in or sending isn't working, check each of these:
 
@@ -241,9 +298,10 @@ If sign-in or sending isn't working, check each of these:
 - [ ] Terminal's `===== GMAIL SEND ERROR =====` block checked for the
       real Gmail API error message
 
----
+</details>
 
-## Using the app
+<details>
+<summary><b>📖 Using the app</b></summary>
 
 1. **Paste addresses or upload a CSV.** Headers are matched
    case-insensitively: `Email`, `Name`, `Company`, `Position`, `Gender`
@@ -263,7 +321,7 @@ If sign-in or sending isn't working, check each of these:
 6. Check **Send history** any time — search it or export it as a CSV
    report.
 
-### Greeting system
+#### Greeting system
 
 The app does not guess a recipient's gender from an email address. When
 your CSV gives high-confidence evidence — an explicit `Gender` column, or
@@ -274,9 +332,10 @@ confidence. Anything less certain falls back to `Dear Hiring Manager,` or
 and override the resolved greeting for every recipient in the preview
 step.
 
----
+</details>
 
-## Project structure
+<details>
+<summary><b>🗂️ Project structure</b></summary>
 
 ```
 app/
@@ -302,7 +361,7 @@ lib/
 types/index.ts  # Shared TypeScript types
 ```
 
-### How it works
+#### How it works
 
 ```
 User → Google OAuth → NextAuth Session → Recipient List / CSV
@@ -310,9 +369,10 @@ User → Google OAuth → NextAuth Session → Recipient List / CSV
      → Resume / Attachments → Gmail API → Recipient
 ```
 
----
+</details>
 
-## Deployment
+<details>
+<summary><b>🚀 Deployment (Vercel or any Node host)</b></summary>
 
 This project's backend is just Next.js API routes, so it deploys as a
 single app on Vercel — no separate backend service needed.
@@ -332,9 +392,10 @@ Any other Node.js host that supports Next.js API routes (Render,
 Railway, a VM running `next start`, etc.) works the same way — same four
 env vars, matching callback URL registered with Google.
 
----
+</details>
 
-## Security notes
+<details>
+<summary><b>🔒 Security notes</b></summary>
 
 - The app requests only `gmail.send`, plus the standard `openid`,
   `email`, and `profile` scopes needed for sign-in itself — it cannot
@@ -352,9 +413,10 @@ env vars, matching callback URL registered with Google.
   listed. If `GOOGLE_CLIENT_SECRET` or `NEXTAUTH_SECRET` are ever
   accidentally pushed, rotate them immediately in Google Cloud Console.
 
----
+</details>
 
-## Known limitations
+<details>
+<summary><b>⚠️ Known limitations</b></summary>
 
 - Gmail doesn't expose an API for "sends remaining today" — the daily
   counter is tracked locally in your browser and resets if you clear
@@ -367,16 +429,14 @@ env vars, matching callback URL registered with Google.
 - Gender/greeting inference is a best-effort heuristic by design — see
   [Greeting system](#greeting-system) above.
 
----
-
-## Technologies used
-
-Next.js · React · TypeScript · Tailwind CSS · NextAuth.js ·
-Google OAuth 2.0 · Gmail API · Zustand · Node.js · Vercel
+</details>
 
 ---
 
-## License
+<div align="center">
 
-This project is intended for educational and personal job-application
-automation purposes.
+**Tech:** Python · Azure OpenAI · python-telegram-bot · SQLite · Next.js · React · TypeScript · Tailwind CSS · NextAuth.js · Gmail API · Zustand
+
+<sub>MIT licensed · built for personal job-application automation · a real employer never asks you to pay to apply</sub>
+
+</div>

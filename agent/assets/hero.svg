@@ -13,7 +13,7 @@
   <rect x="0.5" y="0.5" width="899" height="249" rx="16" fill="none" stroke="#30363d"/>
   <circle cx="60" cy="200" r="2" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="5s" begin="0s" repeatCount="indefinite"/><animate attributeName="cy" values="200;175" dur="5s" begin="0s" repeatCount="indefinite"/></circle><circle cx="140" cy="90" r="1.5" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="6s" begin="1s" repeatCount="indefinite"/><animate attributeName="cy" values="90;65" dur="6s" begin="1s" repeatCount="indefinite"/></circle><circle cx="790" cy="70" r="2" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="5.5s" begin="2s" repeatCount="indefinite"/><animate attributeName="cy" values="70;45" dur="5.5s" begin="2s" repeatCount="indefinite"/></circle><circle cx="850" cy="190" r="1.5" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="4.5s" begin="0.5s" repeatCount="indefinite"/><animate attributeName="cy" values="190;165" dur="4.5s" begin="0.5s" repeatCount="indefinite"/></circle><circle cx="230" cy="40" r="1.2" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="6.5s" begin="3s" repeatCount="indefinite"/><animate attributeName="cy" values="40;15" dur="6.5s" begin="3s" repeatCount="indefinite"/></circle><circle cx="700" cy="215" r="1.8" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="5s" begin="1.5s" repeatCount="indefinite"/><animate attributeName="cy" values="215;190" dur="5s" begin="1.5s" repeatCount="indefinite"/></circle><circle cx="520" cy="30" r="1.2" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="7s" begin="2.5s" repeatCount="indefinite"/><animate attributeName="cy" values="30;5" dur="7s" begin="2.5s" repeatCount="indefinite"/></circle><circle cx="330" cy="225" r="1.5" fill="#58a6ff" opacity="0.0"><animate attributeName="opacity" values="0;0.5;0" dur="6s" begin="4s" repeatCount="indefinite"/><animate attributeName="cy" values="225;200" dur="6s" begin="4s" repeatCount="indefinite"/></circle>
   <text x="450.0" y="86" text-anchor="middle" font-family="'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="46" font-weight="800" fill="url(#title-spread)">AI Job-Hunt Agent</text>
-  <text x="450.0" y="122" text-anchor="middle" font-family="'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="17" fill="#8b949e">Finds small AI startups · writes a tailored email · sends only after you approve</text>
+  <text x="450.0" y="122" text-anchor="middle" font-family="'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="17" fill="#8b949e">Finds AI/ML openings · screens out senior &amp; fake posts · sends 40 tailored emails a day</text>
   <rect x="120" y="150" width="660" height="48" rx="10" fill="#010409" stroke="#30363d"/>
   
   <clipPath id="clip0"><rect x="143.0" y="158" height="34" width="0">
@@ -55,16 +55,16 @@
       <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="0.9s" repeatCount="indefinite"/>
     </rect>
   </g>
-  <clipPath id="clip3"><rect x="155.2" y="158" height="34" width="0">
+  <clipPath id="clip3"><rect x="149.1" y="158" height="34" width="0">
     <animate attributeName="width" dur="16.0s" repeatCount="indefinite"
-      keyTimes="0;0.7500;0.8688;1" values="0;0;589.6;589.6" calcMode="linear"/>
+      keyTimes="0;0.7500;0.8688;1" values="0;0;601.8;601.8" calcMode="linear"/>
   </rect></clipPath>
   <g opacity="0"><animate attributeName="opacity" dur="16.0s" repeatCount="indefinite" keyTimes="0.0000;0.7500;0.7506;0.9781;0.9788;1.0000" values="0;0;1;1;0;0"/>
-    <text x="157.2" y="182" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="20" fill="#7ee787" textLength="585.6"
-      lengthAdjust="spacingAndGlyphs" clip-path="url(#clip3)">&gt; draft ready - waiting for your tap on Telegram</text>
+    <text x="151.1" y="182" font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="20" fill="#7ee787" textLength="597.8"
+      lengthAdjust="spacingAndGlyphs" clip-path="url(#clip3)">&gt; screened, queued by deadline - sending 40 a day</text>
     <rect y="164" width="10" height="22" fill="#7ee787">
       <animate attributeName="x" dur="16.0s" repeatCount="indefinite"
-        keyTimes="0;0.7500;0.8688;1" values="157.2;157.2;746.8;746.8"/>
+        keyTimes="0;0.7500;0.8688;1" values="151.1;151.1;752.9;752.9"/>
       <animate attributeName="opacity" values="1;1;0;0" keyTimes="0;0.5;0.5;1" dur="0.9s" repeatCount="indefinite"/>
     </rect>
   </g>
