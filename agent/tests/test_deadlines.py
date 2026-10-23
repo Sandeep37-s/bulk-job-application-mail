@@ -1,0 +1,58 @@
+import json
+import unittest
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+import test_sending
+from jobagent import db, deadlines, sending
+
+
+class DeadlineTests(unittest.TestCase):
+    setUp = test_sending.SendingTests.setUp
+    tearDown = test_sending.SendingTests.tearDown
+    def set_deadline(self, lead, at):
+        db.kv_set(f'deadline:{lead}', json.dumps({'at': at.isoformat(), 'quote': 'Deadline: test'}))
+
+    def test_nearest_deadline_first(self):
+        now = datetime.now(timezone.utc)
+        self.set_deadline(self.lead, now + timedelta(days=5))
+        second = db.add_lead(domain='urgent.ai', hiring_role='AI Engineer', status='pending')
+        db.kv_set(f'auto_eligible:{second}', '1')
+        self.set_deadline(second, now + timedelta(hours=2))
+        self.assertEqual(sending.pending_queue()[0]['id'], second)
+
+    def test_expired_never_sent(self):
+        self.set_deadline(self.lead, datetime.now(timezone.utc) - timedelta(seconds=1))
+        with patch.object(sending, 'send_email') as smtp:
+            self.assertIn('Expired', sending.send_one(self.lead))
+            smtp.assert_not_called()
+        self.assertEqual(db.get_lead(self.lead)['status'], 'expired')
+
+    def test_quota_projection(self):
+        now = datetime.now(timezone.utc)
+        for i in range(40):
+            db.add_lead(domain=f'used{i}.ai', sent_at=now.isoformat(), status='sent')
+        slots = deadlines.projected_slots([db.get_lead(self.lead)], 40, 2160, now)
+        self.assertGreaterEqual(slots[0][1], now + timedelta(hours=24))
+
+    def test_only_source_backed_quote(self):
+        company = dict(source_url='https://acme.ai/jobs', deadline_text='Apply by 2026-10-25')
+        deadlines.save_evidence(self.lead, company, [dict(url='https://other.ai', snippet=company['deadline_text'])])
+        self.assertIsNone(deadlines.deadline_for(self.lead))
+        deadlines.save_evidence(self.lead, company, [dict(url=company['source_url'], snippet=company['deadline_text'])])
+        self.assertEqual(deadlines.deadline_for(self.lead).astimezone(deadlines.IST).day, 25)
+
+    def test_ambiguous_deadline_held(self):
+        db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': 'Apply by tomorrow'}))
+        with patch.object(sending, 'send_email') as smtp:
+            self.assertIn('manual review', sending.send_one(self.lead))
+            smtp.assert_not_called()
+
+    def test_date_formats_and_no_guessing(self):
+        self.assertIsNotNone(deadlines.parse_deadline('Deadline: 25 October 2026'))
+        self.assertIsNone(deadlines.parse_deadline('Apply by tomorrow'))
+        self.assertIsNone(deadlines.parse_deadline('Published 2026-10-25'))
+        self.assertIsNone(deadlines.parse_deadline('Deadline 2026-10-25 10:00 PST'))
+
+
+if __name__ == '__main__':
+    unittest.main()

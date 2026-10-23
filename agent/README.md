@@ -1,3 +1,22 @@
+## Deadline-aware sending
+
+Hiring applications with verified deadlines are ordered earliest-deadline-first,
+then hiring applications with unknown deadlines, then AI-company outreach.
+Source-backed absolute dates (ISO or English month, including year) are parsed;
+date-only deadlines mean end-of-day India time. Ambiguous, relative, explicit-time
+or foreign-timezone deadlines are held for review, not guessed. Source quotes and
+links are retained. Expired applications are skipped before SMTP and marked expired.
+An hourly bounded refresh checks up to five queued job sources, no more than once
+per source every six hours; legacy hiring drafts wait for source verification.
+This uses existing extraction caching but can add AI calls when source text changes.
+Blocked or inaccessible sources cannot provide reliable deadlines.
+The sender estimates queue slots using the 40-attempt rolling limit and 36-minute
+gap. A one-time Telegram alert includes the job link, contact, quoted deadline and
+estimated slot if capacity may miss a deadline (30-minute safety margin), or a
+reported deadline needs review. Use /skip ID after applying manually through the
+job link to avoid a later queued email. Sending limits are never bypassed. Unknown
+or unreported deadlines and jobs closing early cannot be guaranteed.
+
 ## Hiring-first queue
 
 Eligible advertised AI/ML openings are sent before speculative company outreach.

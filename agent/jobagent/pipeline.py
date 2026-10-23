@@ -8,6 +8,7 @@ from .contacts import clean_emails, domain_of, find_website, is_blocked, is_dire
 from .llm import compose_email, extract_companies
 from .search import search, with_page_text
 from .sending import outreach_kind
+from .deadlines import save_evidence, expired
 
 log = logging.getLogger(__name__)
 
@@ -122,6 +123,10 @@ def process_company(c, results=None):
 
     lead_id = db.add_lead(**fields, email=emails[0], email_source=sources.get(emails[0]))
     if not lead_id:
+        return None
+    save_evidence(lead_id, c, results or [])
+    if expired(lead_id):
+        db.update_lead(lead_id, status='expired')
         return None
     try:
         subject, body = compose_email(db.get_lead(lead_id), site_text)

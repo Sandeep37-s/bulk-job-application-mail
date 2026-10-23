@@ -46,6 +46,7 @@ Return JSON: {{"companies": [ {{
   "hiring_role": str or null  (an AI/ML/data role they are advertising, if the result shows one),
   "job_url": str or null,
   "source_url": str          (exact URL of the result supporting this company and contact),
+  "deadline_text": str or null (exact short quote containing application deadline and date/time from this job source; null if absent; never invent or resolve relative dates),
   "contact_email": str or null (only if literally present in the result text),
   "why": str                  (one line: why this company is worth emailing)
 }} ] }}

@@ -13,6 +13,7 @@ class SendingTests(unittest.TestCase):
         self.lead = db.add_lead(domain='acme.ai', email='hr@acme.ai', hiring_role='AI Engineer',
                                 email_source='https://acme.ai/jobs', subject='Application', body='Hello', status='pending')
         db.kv_set(f'auto_eligible:{self.lead}', '1')
+        db.kv_set(f'deadline_scanned:{self.lead}', '1')
 
     def tearDown(self):
         self.p.stop()

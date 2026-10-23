@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from . import db
 from .config import CFG
 from .mailer import send_email
+from .deadlines import deadline_for, expired, metadata
 
 
 def relevant_role(role):
@@ -45,7 +46,14 @@ def pending_queue():
     """Hiring applications first; oldest first within each priority."""
     leads = [lead for lead in db.leads_with_status('pending')
              if db.kv_get(f"auto_eligible:{lead['id']}") == '1']
-    return sorted(leads, key=lambda lead: (not bool(lead.get('hiring_role')), lead['id']))
+    active = []
+    for lead in leads:
+        if expired(lead['id']):
+            db.update_lead(lead['id'], status='expired')
+        else:
+            active.append(lead)
+    far_future = datetime.max.replace(tzinfo=timezone.utc)
+    return sorted(active, key=lambda lead: (not bool(lead.get('hiring_role')), deadline_for(lead['id']) or far_future, lead['id']))
 
 
 def send_one(lead_id):
@@ -54,6 +62,13 @@ def send_one(lead_id):
     lead = db.get_lead(lead_id)
     if not lead or lead['status'] != 'pending':
         return 'Not pending.'
+    if expired(lead_id):
+        db.update_lead(lead_id, status='expired')
+        return 'Expired: application deadline has passed.'
+    if lead.get('hiring_role') and db.kv_get(f'deadline_scanned:{lead_id}') != '1':
+        return 'Missing deadline check: waiting for source refresh.'
+    if metadata(lead_id).get('quote') and not deadline_for(lead_id):
+        return 'Missing verified deadline: manual review required.'
     fallback = not lead.get('hiring_role') and db.kv_get(f'outreach_kind:{lead_id}') == 'company'
     if (not relevant_role(lead.get('hiring_role')) and not fallback) or db.kv_get(f'auto_eligible:{lead_id}') != '1':
         return 'Not eligible: requires a verified advertised AI/ML role.'
