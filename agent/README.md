@@ -1,3 +1,19 @@
+## Current personal deployment: automatic AI/ML applications
+
+Automatic sending is enabled, capped at 40 attempts per India calendar day and
+per rolling 24 hours, spaced at least 36 minutes apart. Only advertised technical
+AI/ML roles whose title is found in their source result qualify. Office, HR,
+sales, marketing and general unrelated roles are excluded even at AI companies.
+Legacy drafts without the new source validation are not automatically sent.
+A minute-by-minute worker drains eligible pending drafts across search cycles.
+SMTP failures pause sending and retain uncertain deliveries for manual review;
+check Gmail Sent before using /resume. /pause stops discovery and sending.
+Successful sends produce a short Telegram message via the normal free Bot API;
+no paid broadcasts or additional AI calls are used for notifications.
+Forty is a ceiling, not a guaranteed daily target or a guarantee against spam
+classification. The historical approval-mode documentation below applies when
+`auto_send` is disabled; sending still requires the current role validation.
+
 <div align="center">
 
 <img src="assets/hero.svg" alt="AI Job-Hunt Agent" width="100%">

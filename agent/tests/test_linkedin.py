@@ -13,8 +13,8 @@ class LinkedInTests(unittest.TestCase):
     def setUp(self):
         self.company = dict(company='Acme AI', website='acme.ai', city='Noida',
                             is_ai_company=True, est_employees=20,
-                            contact_email='recruiter@gmail.com', source_url=POST, job_url=POST)
-        self.results = [dict(url=POST, title='Acme is hiring',
+                            hiring_role='AI Engineer', contact_email='recruiter@gmail.com', source_url=POST, job_url=POST)
+        self.results = [dict(url=POST, title='Acme is hiring AI Engineer',
                              snippet='Apply: recruiter@gmail.com')]
 
     def test_post_queries(self):

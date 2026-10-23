@@ -16,7 +16,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 
 from jobagent import db
 from jobagent.config import CFG, env
-from jobagent.mailer import send_email
+from jobagent.sending import send_one
 from jobagent.pipeline import redraft, run_cycle
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -72,24 +72,24 @@ async def post_card(bot, lead):
 # ---------- sending ----------
 
 async def do_send(lead_id):
-    """Returns a status line for the card."""
-    lead = db.get_lead(lead_id)
-    if lead["status"] == "sent":
-        return "Already sent."
-    if db.sent_today() >= SEND["daily_limit"]:
-        return f"⏸ Daily limit ({SEND['daily_limit']}) reached. Tap Send again tomorrow."
     async with send_lock:
-        wait = float(db.kv_get("last_send_ts", 0)) + SEND["min_gap_seconds"] - time.time()
-        if wait > 0:
-            await asyncio.sleep(wait)
-        try:
-            await asyncio.to_thread(send_email, lead["email"], lead["subject"], lead["body"])
-        except Exception as e:
-            db.update_lead(lead_id, status="failed", error=str(e))
-            return f"⚠️ Send failed: {html.escape(str(e))[:300]}"
-        db.kv_set("last_send_ts", time.time())
-    db.update_lead(lead_id, status="sent", sent_at=db.now())
-    return f"✅ Sent to {html.escape(lead['email'])} ({db.sent_today()}/{SEND['daily_limit']} today)"
+        return await asyncio.to_thread(send_one, lead_id)
+
+
+async def send_pending(context):
+    if not SEND['auto_send'] or send_lock.locked():
+        return
+    for lead in db.leads_with_status('pending'):
+        if db.kv_get(f"auto_eligible:{lead['id']}") != '1':
+            continue
+        status = await do_send(lead['id'])
+        if status.startswith('Sent to') or status.startswith('Sending paused after'):
+            try:
+                await context.bot.send_message(CHAT_ID, status)
+            except Exception:
+                log.exception('Telegram notification failed; delivery state retained')
+        if not status.startswith('Not eligible') and not status.startswith('Missing') and not status.startswith('This recipient'):
+            break
 
 
 # ---------- scheduled cycle ----------
@@ -106,11 +106,7 @@ async def cycle(context: ContextTypes.DEFAULT_TYPE):
             return
     for lead_id in ids:
         lead = db.get_lead(lead_id)
-        if SEND["auto_send"]:
-            status = await do_send(lead_id)
-            await context.bot.send_message(CHAT_ID, card_text(db.get_lead(lead_id), status), parse_mode="HTML",
-                                           disable_web_page_preview=True)
-        else:
+        if not SEND['auto_send']:
             await post_card(context.bot, lead)
     log.info("cycle done: %d new drafts", len(ids))
 
@@ -198,6 +194,7 @@ async def cmd_pause(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mine(update):
         db.kv_set("paused", "0")
+        db.kv_set("sending_paused", "0")
         await update.message.reply_text("▶️ Resumed.")
 
 
@@ -238,6 +235,7 @@ def main():
     app.add_handler(CommandHandler("resume", cmd_resume))
     app.add_handler(CallbackQueryHandler(on_button))
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY & ~filters.COMMAND, on_reply))
+    app.job_queue.run_repeating(send_pending, interval=60, first=15)
     app.job_queue.run_repeating(cycle, interval=CFG["search"]["every_hours"] * 3600, first=30)
     log.info("agent started; searching every %sh", CFG["search"]["every_hours"])
     app.run_polling(allowed_updates=Update.ALL_TYPES)

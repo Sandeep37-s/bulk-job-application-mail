@@ -64,7 +64,8 @@ efficiency:
   extraction_cache_days: 7   # reuse identical inputs; changed posts are reprocessed
 
 sending:
-  auto_send: false            # true = send without asking you. Keep false.
-  daily_limit: 20             # Gmail flags accounts that cold-email a lot; stay low.
-  min_gap_seconds: 90         # pause between two sends
+  auto_send: true             # send eligible advertised AI/ML roles automatically
+  daily_limit: 40             # maximum attempts, including uncertain SMTP deliveries
+  min_gap_seconds: 2160       # at least 36 minutes between attempts
   followup_after_days: 0      # 0 = never send a follow-up
+

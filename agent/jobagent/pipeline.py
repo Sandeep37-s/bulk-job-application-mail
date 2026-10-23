@@ -7,6 +7,7 @@ from .config import CFG
 from .contacts import clean_emails, domain_of, find_website, is_blocked, is_directory, listed_contact, scrape_site, search_email_fallback
 from .llm import compose_email, extract_companies
 from .search import search, with_page_text
+from .sending import evidence_matches
 
 log = logging.getLogger(__name__)
 
@@ -82,6 +83,8 @@ def run_cycle():
 
 
 def process_company(c, results=None):
+    if not evidence_matches(c, results or []):
+        return None
     name = (c.get("company") or "").strip()
     f = CFG["filters"]
     if not name or is_blocked(name) or not c.get("is_ai_company") or not in_target_city(c.get("city")):
@@ -122,6 +125,7 @@ def process_company(c, results=None):
     try:
         subject, body = compose_email(db.get_lead(lead_id), site_text)
         db.update_lead(lead_id, subject=subject, body=body, status="pending")
+        db.kv_set(f"auto_eligible:{lead_id}", '1')
         db.kv_set(f"site_text:{lead_id}", site_text[:2500])
         log.info("draft ready: %s <%s>", name, emails[0])
         return lead_id
