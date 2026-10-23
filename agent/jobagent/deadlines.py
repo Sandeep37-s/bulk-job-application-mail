@@ -57,24 +57,20 @@ def expired(lead_id):
 
 
 def projected_slots(leads, limit, gap, now=None):
+    """Estimated send time per lead: `gap` apart, at most `limit` per IST day."""
     now = now or datetime.now(timezone.utc)
-    with db.conn() as c:
-        rows = c.execute('SELECT id, sent_at FROM leads WHERE sent_at IS NOT NULL').fetchall()
-        attempts = c.execute('SELECT lead_id, attempted_at FROM send_attempts').fetchall()
-    history = {r[0]: datetime.fromisoformat(r[1]) for r in attempts}
-    for row in rows:
-        history[row[0]] = max(history.get(row[0], datetime.min.replace(tzinfo=timezone.utc)), datetime.fromisoformat(row[1]))
-    stamps = sorted(t for t in history.values() if t > now - timedelta(hours=24))
     slot = max(now, datetime.fromtimestamp(float(db.kv_get('last_send_ts', 0)), timezone.utc) + timedelta(seconds=gap))
+    day = db.day_start(slot)
+    count = db.used_today(at=slot) if day == db.day_start(now) else 0
     out = []
     for lead in leads:
-        while True:
-            stamps = [t for t in stamps if t > slot - timedelta(hours=24)]
-            if len(stamps) < limit:
-                break
-            slot = stamps[0] + timedelta(hours=24, seconds=1)
+        if db.day_start(slot) != day:
+            day, count = db.day_start(slot), 0
+        if count >= limit:
+            slot = day + timedelta(days=1)
+            day, count = slot, 0
         out.append((lead, slot))
-        stamps.append(slot)
+        count += 1
         slot += timedelta(seconds=gap)
     return out
 

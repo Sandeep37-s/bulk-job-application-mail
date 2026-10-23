@@ -56,6 +56,23 @@ def pending_queue():
     return sorted(active, key=lambda lead: (not bool(lead.get('hiring_role')), deadline_for(lead['id']) or far_future, lead['id']))
 
 
+def sendable(lead):
+    """Queued drafts that can go out without manual review."""
+    return not (metadata(lead['id']).get('quote') and not deadline_for(lead['id']))
+
+
+def sleep_state(limit):
+    """'full': today's cap is used, so no searching or AI work until midnight IST.
+    'queued': enough sendable drafts already wait to fill today's cap, so skip new searches.
+    None: keep working."""
+    used = db.used_today()
+    if used >= limit:
+        return 'full'
+    if used + sum(sendable(lead) for lead in pending_queue()) >= limit:
+        return 'queued'
+    return None
+
+
 def send_one(lead_id):
     """Reserve before SMTP; uncertain/failed deliveries are never auto-retried."""
     settings = CFG['sending']
@@ -74,10 +91,6 @@ def send_one(lead_id):
         return 'Not eligible: requires a verified advertised AI/ML role.'
     if not lead.get('email_source') or not lead.get('subject') or not lead.get('body'):
         return 'Missing verified contact or draft.'
-    now = datetime.now(timezone.utc)
-    ist = timezone(timedelta(hours=5, minutes=30))
-    midnight = now.astimezone(ist).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
-    cutoff = min(midnight, now - timedelta(hours=24)).isoformat(timespec='seconds')
     with db.conn() as c:
         c.execute('BEGIN IMMEDIATE')
         values = dict(c.execute("SELECT k,v FROM kv WHERE k IN ('paused','sending_paused','last_send_ts')"))
@@ -85,9 +98,8 @@ def send_one(lead_id):
             return 'Sending paused.'
         if time.time() - float(values.get('last_send_ts', 0)) < settings['min_gap_seconds']:
             return 'Waiting for the next send slot.'
-        count = c.execute('SELECT COUNT(*) FROM leads WHERE sent_at>=? OR id IN (SELECT lead_id FROM send_attempts WHERE attempted_at>=?)', (cutoff, cutoff)).fetchone()[0]
-        if count >= settings['daily_limit']:
-            return 'Daily/24-hour sending limit reached.'
+        if db.used_today(c) >= settings['daily_limit']:
+            return 'Daily sending limit reached; resumes at midnight IST.'
         if c.execute("SELECT 1 FROM leads WHERE lower(email)=lower(?) AND status IN ('sent','sending','send_uncertain')", (lead['email'],)).fetchone():
             return 'This recipient has already been contacted or has an unresolved delivery.'
         changed = c.execute("UPDATE leads SET status='sending' WHERE id=? AND status='pending'", (lead_id,)).rowcount

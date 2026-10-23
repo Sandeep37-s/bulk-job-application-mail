@@ -32,7 +32,25 @@ class DeadlineTests(unittest.TestCase):
         for i in range(40):
             db.add_lead(domain=f'used{i}.ai', sent_at=now.isoformat(), status='sent')
         slots = deadlines.projected_slots([db.get_lead(self.lead)], 40, 2160, now)
-        self.assertGreaterEqual(slots[0][1], now + timedelta(hours=24))
+        self.assertEqual(slots[0][1], db.day_start(now) + timedelta(days=1))
+
+    def test_cap_resets_at_ist_midnight(self):
+        yesterday = db.day_start() - timedelta(minutes=1)
+        for i in range(40):
+            db.add_lead(domain=f'old{i}.ai', sent_at=yesterday.isoformat(timespec='seconds'), status='sent')
+        with patch.object(sending, 'send_email') as smtp:
+            self.assertTrue(sending.send_one(self.lead).startswith('Sent to'))
+            smtp.assert_called_once()
+
+    def test_sleep_after_daily_cap(self):
+        self.assertIsNone(sending.sleep_state(40))
+        for i in range(39):
+            db.add_lead(domain=f'used{i}.ai', sent_at=db.now(), status='sent')
+        self.assertEqual(sending.sleep_state(40), 'queued')  # 39 sent + 1 queued fills today
+        db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': 'Apply by tomorrow'}))
+        self.assertIsNone(sending.sleep_state(40))  # held for review: does not count
+        db.add_lead(domain='last.ai', sent_at=db.now(), status='sent')
+        self.assertEqual(sending.sleep_state(40), 'full')
 
     def test_only_source_backed_quote(self):
         company = dict(source_url='https://acme.ai/jobs', deadline_text='Apply by 2026-10-25')

@@ -122,10 +122,29 @@ def leads_with_status(status):
         return [dict(r) for r in c.execute("SELECT * FROM leads WHERE status=? ORDER BY id", (status,))]
 
 
-def sent_today():
-    today = datetime.now(timezone.utc).date().isoformat()
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def day_start(at=None):
+    """Start of the IST calendar day containing `at`, in UTC. The daily cap resets here."""
+    at = at or datetime.now(timezone.utc)
+    return at.astimezone(IST).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+
+
+def used_today(c=None, at=None):
+    """Send attempts (including uncertain deliveries) since IST midnight."""
+    cutoff = day_start(at).isoformat(timespec='seconds')
+    sql = 'SELECT COUNT(*) FROM leads WHERE sent_at>=? OR id IN (SELECT lead_id FROM send_attempts WHERE attempted_at>=?)'
+    if c is not None:
+        return c.execute(sql, (cutoff, cutoff)).fetchone()[0]
     with conn() as c:
-        return c.execute("SELECT COUNT(*) FROM leads WHERE status='sent' AND sent_at >= ?", (today,)).fetchone()[0]
+        return c.execute(sql, (cutoff, cutoff)).fetchone()[0]
+
+
+def sent_today():
+    with conn() as c:
+        return c.execute("SELECT COUNT(*) FROM leads WHERE status='sent' AND sent_at >= ?",
+                         (day_start().isoformat(timespec='seconds'),)).fetchone()[0]
 
 
 def stats():

@@ -10,8 +10,8 @@ An hourly bounded refresh checks up to five queued job sources, no more than onc
 per source every six hours; legacy hiring drafts wait for source verification.
 This uses existing extraction caching but can add AI calls when source text changes.
 Blocked or inaccessible sources cannot provide reliable deadlines.
-The sender estimates queue slots using the 40-attempt rolling limit and 36-minute
-gap. A one-time Telegram alert includes the job link, contact, quoted deadline and
+The sender estimates queue slots using the 40-attempt daily limit (resets at midnight IST)
+and 36-minute gap. A one-time Telegram alert includes the job link, contact, quoted deadline and
 estimated slot if capacity may miss a deadline (30-minute safety margin), or a
 reported deadline needs review. Use /skip ID after applying manually through the
 job link to avoid a later queued email. Sending limits are never bypassed. Unknown
@@ -26,18 +26,24 @@ unrelated vacancy is never used as a fallback application. Fallback sends wait
 while discovery is running so newly found hiring applications get priority.
 Within each priority, the oldest queued lead is sent first. The 40-attempt cap
 and 36-minute spacing still apply. Overflow remains pending across days and
-restarts; discovery continues even when sending is capped. A persistent hiring
+restarts and are sent first the next day. A persistent hiring
 backlog can delay company outreach. Historical strict-hiring-only notes below
 are superseded by this queue policy.
 
 ## Current personal deployment: automatic AI/ML applications
 
-Automatic sending is enabled, capped at 40 attempts per India calendar day and
-per rolling 24 hours, spaced at least 36 minutes apart. Only advertised technical
+Automatic sending is enabled, capped at 40 attempts per India calendar day
+(resets at midnight IST), spaced at least 36 minutes apart. Only advertised technical
 AI/ML roles whose title is found in their source result qualify. Office, HR,
 sales, marketing and general unrelated roles are excluded even at AI companies.
 Legacy drafts without the new source validation are not automatically sent.
 A minute-by-minute worker drains eligible pending drafts across search cycles.
+
+To save AI cost the agent sleeps once the day is covered: after 40 attempts it
+stops searching, drafting and deadline refreshes until midnight IST, and it also
+skips new searches while queued sendable drafts already fill the rest of the day.
+Drafts held for deadline review do not count toward that. `/run` searches anyway;
+`/stats` shows whether the agent is sleeping. The VM's hourly cost is unchanged.
 SMTP failures pause sending and retain uncertain deliveries for manual review;
 check Gmail Sent before using /resume. /pause stops discovery and sending.
 Successful sends produce a short Telegram message via the normal free Bot API;

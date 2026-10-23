@@ -16,7 +16,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 
 from jobagent import db
 from jobagent.config import CFG, env
-from jobagent.sending import send_one, pending_queue
+from jobagent.sending import send_one, pending_queue, sleep_state
 from jobagent.pipeline import redraft, run_cycle
 from jobagent.deadlines import deadline_for, metadata, projected_slots, refresh_pending_deadlines, IST
 from datetime import datetime, timedelta, timezone
@@ -30,6 +30,8 @@ CHAT_ID = int(env("TELEGRAM_CHAT_ID") or 0)
 SEND = CFG["sending"]
 send_lock = asyncio.Lock()
 cycle_lock = asyncio.Lock()
+SLEEP_NOTE = {'full': "\n😴 Sleeping until midnight IST: today's limit is reached",
+              'queued': "\n😴 Not searching: queued drafts already fill today's limit"}
 
 
 # ---------- cards ----------
@@ -110,6 +112,8 @@ async def send_pending(context):
         if db.kv_get(f"auto_eligible:{lead['id']}") != '1':
             continue
         status = await do_send(lead['id'])
+        if status.startswith('Sent to') and db.used_today() >= SEND['daily_limit']:
+            status += f"\n😴 Today's {SEND['daily_limit']} emails are done. Sleeping until midnight IST, then a new search."
         if status.startswith('Sent to') or status.startswith('Sending paused after'):
             try:
                 await context.bot.send_message(CHAT_ID, status)
@@ -121,8 +125,15 @@ async def send_pending(context):
 
 # ---------- scheduled cycle ----------
 
-async def cycle(context: ContextTypes.DEFAULT_TYPE):
+async def cycle(context: ContextTypes.DEFAULT_TYPE, force=False):
     if db.kv_get("paused") == "1" or cycle_lock.locked():
+        return
+    # Searching and drafting are what cost AI tokens. Skip them while today's
+    # cap is used or already covered by queued drafts; /run overrides this.
+    state = None if force else await asyncio.to_thread(sleep_state, SEND['daily_limit'])
+    if state:
+        log.info("search skipped (%s): today's %d emails are %s", state, SEND['daily_limit'],
+                 'sent' if state == 'full' else 'covered by the queue')
         return
     async with cycle_lock:
         try:
@@ -139,6 +150,8 @@ async def cycle(context: ContextTypes.DEFAULT_TYPE):
 
 
 async def refresh_deadlines(context):
+    if await asyncio.to_thread(sleep_state, SEND['daily_limit']) == 'full':
+        return
     try:
         await asyncio.to_thread(refresh_pending_deadlines)
     except Exception:
@@ -208,7 +221,7 @@ async def on_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_run(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mine(update):
         await update.message.reply_text("🔎 Searching now…")
-        await cycle(context)
+        await cycle(context, force=True)
         await update.message.reply_text("Done.")
 
 
@@ -218,7 +231,8 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         usage = db.ai_usage_today()
         await update.message.reply_text(
             ("\n".join(f"{k}: {v}" for k, v in sorted(s.items())) or "Nothing yet.")
-            + f"\n\nSent today: {db.sent_today()}/{SEND['daily_limit']}"
+            + f"\n\nSent today (IST): {db.sent_today()}/{SEND['daily_limit']}"
+            + SLEEP_NOTE.get(sleep_state(SEND['daily_limit']), '')
             + f"\nAI today (UTC): {usage['calls']} calls; {usage['input_tokens']} input / {usage['output_tokens']} output tokens"
             + f"\nUnchanged-result batches reused: {usage['cache_hits']}"
             + ("\n⏸ paused" if db.kv_get("paused") == "1" else ""))
