@@ -25,13 +25,37 @@ def evidence_matches(company, results):
     return any(r.get('url') == source and normalize(role) in normalize(r.get('title', '') + ' ' + r.get('snippet', '')) for r in results)
 
 
+def outreach_kind(company, results):
+    if evidence_matches(company, results):
+        return 'hiring'
+    # An unrelated advertised role must never become a fallback application.
+    if company.get('hiring_role') or not company.get('is_ai_company'):
+        return None
+    source = company.get('source_url') or company.get('website')
+    name = (company.get('company') or '').strip().lower()
+    for result in results:
+        text = (result.get('title', '') + ' ' + result.get('snippet', '')).lower()
+        if name and result.get('url') == source and name in text and re.search(
+                r'\b(ai|ml|artificial intelligence|machine learning|generative ai|llm)\b', text):
+            return 'company'
+    return None
+
+
+def pending_queue():
+    """Hiring applications first; oldest first within each priority."""
+    leads = [lead for lead in db.leads_with_status('pending')
+             if db.kv_get(f"auto_eligible:{lead['id']}") == '1']
+    return sorted(leads, key=lambda lead: (not bool(lead.get('hiring_role')), lead['id']))
+
+
 def send_one(lead_id):
     """Reserve before SMTP; uncertain/failed deliveries are never auto-retried."""
     settings = CFG['sending']
     lead = db.get_lead(lead_id)
     if not lead or lead['status'] != 'pending':
         return 'Not pending.'
-    if not relevant_role(lead.get('hiring_role')) or db.kv_get(f'auto_eligible:{lead_id}') != '1':
+    fallback = not lead.get('hiring_role') and db.kv_get(f'outreach_kind:{lead_id}') == 'company'
+    if (not relevant_role(lead.get('hiring_role')) and not fallback) or db.kv_get(f'auto_eligible:{lead_id}') != '1':
         return 'Not eligible: requires a verified advertised AI/ML role.'
     if not lead.get('email_source') or not lead.get('subject') or not lead.get('body'):
         return 'Missing verified contact or draft.'
@@ -63,4 +87,5 @@ def send_one(lead_id):
         db.kv_set('sending_paused', '1')
         return 'Sending paused after an SMTP error. Check Gmail Sent before retrying.'
     db.update_lead(lead_id, status='sent', sent_at=db.now(), error=None)
-    return f"Sent to {lead['email']} for {lead['hiring_role']}."
+    target = lead.get('hiring_role') or 'AI/ML opportunities (company outreach)'
+    return f"Sent to {lead['email']} for {target}."

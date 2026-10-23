@@ -16,7 +16,7 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Cont
 
 from jobagent import db
 from jobagent.config import CFG, env
-from jobagent.sending import send_one
+from jobagent.sending import send_one, pending_queue
 from jobagent.pipeline import redraft, run_cycle
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -79,7 +79,11 @@ async def do_send(lead_id):
 async def send_pending(context):
     if not SEND['auto_send'] or send_lock.locked():
         return
-    for lead in db.leads_with_status('pending'):
+    for lead in pending_queue():
+        # Finish ongoing discovery before taking a fallback slot: it may find
+        # an advertised opening that should take priority.
+        if not lead.get('hiring_role') and cycle_lock.locked():
+            continue
         if db.kv_get(f"auto_eligible:{lead['id']}") != '1':
             continue
         status = await do_send(lead['id'])

@@ -1,3 +1,16 @@
+## Hiring-first queue
+
+Eligible advertised AI/ML openings are sent before speculative company outreach.
+When none are sendable, verified AI/ML companies without an advertised opening
+can receive an inquiry specifically about AI/ML engineering opportunities. An
+unrelated vacancy is never used as a fallback application. Fallback sends wait
+while discovery is running so newly found hiring applications get priority.
+Within each priority, the oldest queued lead is sent first. The 40-attempt cap
+and 36-minute spacing still apply. Overflow remains pending across days and
+restarts; discovery continues even when sending is capped. A persistent hiring
+backlog can delay company outreach. Historical strict-hiring-only notes below
+are superseded by this queue policy.
+
 ## Current personal deployment: automatic AI/ML applications
 
 Automatic sending is enabled, capped at 40 attempts per India calendar day and
