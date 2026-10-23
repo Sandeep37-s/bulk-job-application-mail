@@ -7,9 +7,9 @@ from .config import CFG
 from .contacts import clean_emails, domain_of, find_website, is_blocked, is_directory, listed_contact, scrape_site, search_email_fallback
 from .llm import compose_email, extract_companies
 from .search import search, with_page_text
-from .sending import outreach_kind
+from .sending import outreach_kind, relevant_role
 from .deadlines import save_evidence, expired
-from .screening import experience_reason, is_free_mail, save_experience, scam_reason, verified_experience
+from .screening import experience_reason, is_agency, is_free_mail, save_experience, scam_reason, verified_experience
 
 log = logging.getLogger(__name__)
 
@@ -44,9 +44,15 @@ def run_cycle():
     cycle_number = int(db.kv_get('discovery_cycle', '0'))
     db.kv_set('discovery_cycle', cycle_number + 1)
     for candidate in db.retry_candidates():
+        # Bump first so failures rotate to the back instead of blocking the next ones.
+        db.update_lead(candidate['id'])
+        # Leads from before full validation are not retried: drafting them costs AI
+        # calls for emails that could never be sent automatically.
+        if db.kv_get(f"validated:{candidate['id']}") != '1':
+            continue
         try:
             candidate['is_ai_company'] = True  # already passed discovery filters
-            lead_id = process_company(candidate)
+            lead_id = process_company(candidate, retry=True)
             if lead_id:
                 new_ids.append(lead_id)
         except Exception:
@@ -84,12 +90,17 @@ def run_cycle():
     return new_ids
 
 
-def process_company(c, results=None):
-    kind = outreach_kind(c, results or [])
+def process_company(c, results=None, retry=False):
+    if retry:
+        # Source evidence was verified when the lead was first stored.
+        role = c.get('hiring_role')
+        kind = 'hiring' if relevant_role(role) else (None if role else 'company')
+    else:
+        kind = outreach_kind(c, results or [])
     if not kind:
         return None
     # Checked before scraping or drafting, so rejected posts cost no further AI calls.
-    reason = scam_reason(c, results or []) or (
+    reason = ('recruitment agency or job portal' if is_agency(c.get('company')) else None) or scam_reason(c, results or []) or (
         kind == 'hiring' and experience_reason(c.get('hiring_role'), verified_experience(c, results or [])))
     if reason:
         log.info('skipped %s (%s): %s', c.get('company'), c.get('hiring_role'), reason)
@@ -127,13 +138,16 @@ def process_company(c, results=None):
                   what_they_do=c.get("what_they_do"), hiring_role=c.get("hiring_role"), job_url=c.get("job_url"),
                   why=c.get("why"), est_employees=c.get("est_employees"), all_emails=json.dumps(emails))
     if not emails:
-        db.add_lead(**fields, status="no_contact")
+        lead_id = db.add_lead(**fields, status="no_contact")
+        if lead_id:
+            db.kv_set(f"validated:{lead_id}", '1')
         log.info("no email found for %s (%s)", name, domain)
         return None
 
     lead_id = db.add_lead(**fields, email=emails[0], email_source=sources.get(emails[0]))
     if not lead_id:
         return None
+    db.kv_set(f"validated:{lead_id}", '1')
     save_evidence(lead_id, c, results or [])
     save_experience(lead_id, c, results or [])
     if expired(lead_id):

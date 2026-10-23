@@ -10,12 +10,16 @@ class SendingTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.p = patch.object(db, 'DB_PATH', Path(self.tmp.name) / 'db.sqlite')
         self.p.start()
+        # Tests must not depend on the time of day they run at.
+        self.hours = patch.dict(sending.CFG['sending'], {'send_hours': None})
+        self.hours.start()
         self.lead = db.add_lead(domain='acme.ai', email='hr@acme.ai', hiring_role='AI Engineer',
                                 email_source='https://acme.ai/jobs', subject='Application', body='Hello', status='pending')
         db.kv_set(f'auto_eligible:{self.lead}', '1')
         db.kv_set(f'deadline_scanned:{self.lead}', '1')
 
     def tearDown(self):
+        self.hours.stop()
         self.p.stop()
         self.tmp.cleanup()
 

@@ -127,7 +127,7 @@ def pipeline():
     <animateMotion dur="{total}s" repeatCount="indefinite" path="M{x0},{y} H{x1}" keyPoints="0;1;1" keyTimes="0;{travel};1" calcMode="linear"/>
     <animate attributeName="opacity" dur="{total}s" repeatCount="indefinite" keyTimes="0;{travel};{travel + 0.02};1" values="1;1;0;0"/>
   </circle>
-  <text x="{W / 2}" y="{H - 14}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="#6e7681">deadline-first queue · 36 min between sends · Telegram ping after each email</text>
+  <text x="{W / 2}" y="{H - 14}" text-anchor="middle" font-family="{SANS}" font-size="12" fill="#6e7681">deadline-first queue · 09:30–19:30 IST · ~13 min apart · Telegram ping after each email</text>
 </svg>'''
     (OUT / "pipeline.svg").write_text(svg, encoding="utf-8")
 

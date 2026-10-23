@@ -14,7 +14,7 @@
 ![Gmail](https://img.shields.io/badge/Gmail-EA4335?style=for-the-badge&logo=gmail&logoColor=white)
 
 ![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
-![agent tests](https://img.shields.io/badge/agent_tests-41_passing-2ea44f?style=flat-square)
+![agent tests](https://img.shields.io/badge/agent_tests-50_passing-2ea44f?style=flat-square)
 
 </div>
 
@@ -54,10 +54,11 @@ Upload or paste a recipient list, write one template with `{{name}}` / `{{compan
 | | |
 |---|---|
 | 🎯 **Relevant roles only** | AI / ML / GenAI / LLM / NLP / CV / MLOps / data science. No office, HR or sales jobs |
-| 🧑‍🎓 **Right level** | 0–2 years or fresher. Senior, Lead and 3+ year roles are skipped before drafting |
+| 🧑‍🎓 **Right level** | 0–2 years or fresher. Senior, Lead, Head, Architect and 3+ year roles are skipped before drafting |
+| 🏢 **Employers only** | recruitment agencies, staffing firms and job portals are skipped |
 | 🛡️ **Fake-post filter** | fee requests, guaranteed jobs, "earn ₹X/day", WhatsApp-only applications are rejected |
 | ⏳ **Deadline-first** | earliest deadline sent first; expired jobs never sent; Telegram alert if one may be missed |
-| 🐢 **Inbox-safe** | 40/day, 36 min apart, never the same address twice, auto-pause on Gmail errors |
+| 🐢 **Inbox-safe** | 40/day in working hours (09:30–19:30 IST, Mon–Sat), ~13 min apart with random spacing, never the same address twice |
 | 💸 **Cost-aware** | sleeps once the day is covered; caches repeated AI work |
 
 ```bash

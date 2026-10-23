@@ -12,6 +12,7 @@ import sys
 import time
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.error import BadRequest
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from jobagent import db
@@ -84,7 +85,9 @@ async def send_pending(context):
     if not SEND['auto_send'] or send_lock.locked():
         return
     queue = pending_queue()
-    for lead, slot in projected_slots(queue, SEND['daily_limit'], SEND['min_gap_seconds']):
+    # Plan with the longest possible gap so deadline warnings err on the early side.
+    gap = SEND['min_gap_seconds'] + SEND.get('gap_jitter_seconds', 0)
+    for lead, slot in projected_slots(queue, SEND['daily_limit'], gap):
         meta = metadata(lead['id'])
         deadline = deadline_for(lead['id'])
         paused = db.kv_get('paused') == '1' or db.kv_get('sending_paused') == '1'
@@ -113,7 +116,8 @@ async def send_pending(context):
             continue
         status = await do_send(lead['id'])
         if status.startswith('Sent to') and db.used_today() >= SEND['daily_limit']:
-            status += f"\n😴 Today's {SEND['daily_limit']} emails are done. Sleeping until midnight IST, then a new search."
+            hours = f", sending from {SEND['send_hours'].split('-')[0]} IST" if SEND.get('send_hours') else ''
+            status += f"\n😴 Today's {SEND['daily_limit']} emails are done. Sleeping until midnight IST: new search then{hours}."
         if status.startswith('Sent to') or status.startswith('Sending paused after'):
             try:
                 await context.bot.send_message(CHAT_ID, status)
@@ -185,6 +189,14 @@ async def cmd_skip(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ---------- handlers ----------
+
+async def on_error(update, context: ContextTypes.DEFAULT_TYPE):
+    # A button tapped long ago (e.g. across a restart) can no longer be answered; that is harmless.
+    if isinstance(context.error, BadRequest) and 'query is too old' in str(context.error).lower():
+        log.info('ignored stale button press')
+        return
+    log.error('handler error', exc_info=context.error)
+
 
 def mine(update: Update):
     return update.effective_chat and update.effective_chat.id == CHAT_ID
@@ -314,6 +326,7 @@ def main():
     app.add_handler(CommandHandler("pause", cmd_pause))
     app.add_handler(CommandHandler("resume", cmd_resume))
     app.add_handler(CallbackQueryHandler(on_button))
+    app.add_error_handler(on_error)
     app.add_handler(MessageHandler(filters.TEXT & filters.REPLY & ~filters.COMMAND, on_reply))
     app.job_queue.run_repeating(refresh_deadlines, interval=3600, first=5)
     app.job_queue.run_repeating(send_pending, interval=60, first=15)

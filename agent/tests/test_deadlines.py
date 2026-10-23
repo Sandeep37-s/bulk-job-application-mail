@@ -34,6 +34,27 @@ class DeadlineTests(unittest.TestCase):
         slots = deadlines.projected_slots([db.get_lead(self.lead)], 40, 2160, now)
         self.assertEqual(slots[0][1], db.day_start(now) + timedelta(days=1))
 
+    def test_send_window(self):
+        window = {'send_hours': '09:30-19:30', 'send_days': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']}
+        ist = deadlines.IST
+        with patch.dict(sending.CFG['sending'], window):
+            friday_noon = datetime(2026, 10, 23, 12, 0, tzinfo=ist)
+            self.assertTrue(deadlines.in_window(friday_noon))
+            self.assertEqual(deadlines.next_window_open(datetime(2026, 10, 23, 7, 0, tzinfo=ist)),
+                             datetime(2026, 10, 23, 9, 30, tzinfo=ist))
+            # Saturday evening -> Monday morning (Sunday is off)
+            self.assertEqual(deadlines.next_window_open(datetime(2026, 10, 24, 20, 0, tzinfo=ist)),
+                             datetime(2026, 10, 26, 9, 30, tzinfo=ist))
+            slots = deadlines.projected_slots([db.get_lead(self.lead)] * 3, 40, 900,
+                                              datetime(2026, 10, 23, 19, 20, tzinfo=ist))
+            self.assertEqual([s.astimezone(ist).strftime('%a %H:%M') for _, s in slots],
+                             ['Fri 19:20', 'Sat 09:30', 'Sat 09:45'])
+
+    def test_outside_hours_not_sent(self):
+        with patch.dict(sending.CFG['sending'], {'send_hours': '00:00-00:01', 'send_days': ['Mon']}),              patch.object(sending, 'in_window', return_value=False), patch.object(sending, 'send_email') as smtp:
+            self.assertIn('Outside sending hours', sending.send_one(self.lead))
+            smtp.assert_not_called()
+
     def test_cap_resets_at_ist_midnight(self):
         yesterday = db.day_start() - timedelta(minutes=1)
         for i in range(40):

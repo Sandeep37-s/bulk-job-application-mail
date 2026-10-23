@@ -10,7 +10,7 @@
 ![Gmail](https://img.shields.io/badge/Gmail-SMTP-EA4335?style=for-the-badge&logo=gmail&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-state-003B57?style=for-the-badge&logo=sqlite&logoColor=white)
 
-![tests](https://img.shields.io/badge/tests-41_passing-2ea44f?style=flat-square)
+![tests](https://img.shields.io/badge/tests-50_passing-2ea44f?style=flat-square)
 ![runs on](https://img.shields.io/badge/runs_on-Azure_VM_·_systemd-0078D4?style=flat-square)
 ![license](https://img.shields.io/badge/license-MIT-blue?style=flat-square)
 
@@ -55,7 +55,7 @@ Jobs closing soonest go out first. Expired ones are never sent, and Telegram war
 <td valign="top">
 
 **🐢 Inbox-safe pacing**<br>
-At most 40 emails per day, at least 36 minutes apart, never the same address twice. Pauses itself on any Gmail error.
+At most 40 emails a day, only in working hours, about 13 minutes apart with random spacing. Never the same address twice; pauses itself on any Gmail error.
 
 </td>
 <td valign="top">
@@ -81,27 +81,27 @@ flowchart LR
     D -- "passes" --> E["🌐 Company site<br/>real careers@ / hr@"]
     E --> F["✍️ Tailored draft<br/>only real facts"]
     F --> Q[("📥 Queue<br/>hiring first ·<br/>earliest deadline")]
-    Q --> G["📧 Gmail + resume<br/>40/day · 36 min gap"]
+    Q --> G["📧 Gmail + resume<br/>40/day · 09:30–19:30 IST"]
     G --> T["📱 Telegram ping"]
 ```
 
 **A day in the life**
 
 1. Every 3 hours the agent searches, screens and drafts — unless today's 40 emails are already sent or already waiting in the queue.
-2. A worker checks the queue every minute and sends the next email once 36 minutes have passed.
-3. After each email you get a short Telegram message. After the 40th: *"Sleeping until midnight IST."*
-4. At midnight IST the limit resets. Leftover drafts go out first, then a fresh search starts.
+2. Between 09:30 and 19:30 IST (Mon–Sat) a worker sends the next queued email every ~13 minutes (11 min + a random 0–4 min). Searching at night keeps the queue ready for the morning.
+3. After each email you get a short Telegram message. After the 40th: *"Sleeping until midnight IST: new search then, sending from 09:30 IST."*
+4. At midnight IST the limit resets and a fresh search starts; leftover drafts go out first when sending opens.
 
 ## 🚦 Screening rules
 
 | Check | ✅ Sent | ⏭️ Skipped |
 |---|---|---|
 | **Role** | AI / ML / GenAI / LLM / NLP / CV / MLOps / data science | HR, sales, marketing, office, support, unrelated tech |
-| **Title** | anything else, incl. *Junior*, *Intern* | *Senior*, *Sr.*, *Lead*, *Principal*, *Staff*, *Manager* |
-| **Experience** | 0–2 years, fresher, entry-level, or not mentioned | 3+ years (e.g. "3–5 yrs", "5+ years", "minimum 4 yrs") |
+| **Title** | anything else, incl. *Junior*, *Intern* | *Senior*, *Sr.*, *Lead*, *Principal*, *Staff*, *Manager*, *Head*, *Director*, *VP*, *Chief*, *Architect* |
+| **Experience** | 0–2 years, fresher, entry-level, or not mentioned | 3+ years in the post or the title (e.g. "3–5 yrs", "AI Engineer (5+ years)") |
 | **Fake-post signals** | — | registration / training / security fee or deposit · "pay before joining" · guaranteed job · no interview · "earn ₹X per day" · task-based income · WhatsApp/Telegram-only applications |
 | **Contact** | company-domain address (`hr@company.com`) | only a personal Gmail/Yahoo/Outlook → **held for you on Telegram** |
-| **Company** | own website, small, AI-focused, Delhi NCR | job boards, big companies, blocklist, `never_contact` |
+| **Company** | own website, small, AI-focused, Delhi NCR | recruitment agencies, staffing/placement firms, job portals, big companies, `never_contact` |
 
 > [!NOTE]
 > Facts the AI extracts — experience lines, deadlines, email addresses — are only used if they appear **word-for-word in the source page**. An invented quote can't skip a good job or send to a made-up address.
@@ -111,7 +111,8 @@ flowchart LR
 | | |
 |---|---|
 | **Daily limit** | 40 attempts per India calendar day, resets at midnight IST |
-| **Spacing** | at least 36 minutes between emails |
+| **Hours** | 09:30–19:30 IST, Monday–Saturday, so emails arrive while HR is reading |
+| **Spacing** | 11 minutes plus a random 0–4 minutes (about 13 min), so 40 fit in one working day |
 | **Order** | 🟢 advertised openings (earliest verified deadline first) → 🔵 outreach to AI companies with no posted opening |
 | **Overflow** | stays queued and goes out first the next day |
 | **Deadlines** | expired jobs are skipped; unclear deadlines are held for review; at-risk jobs trigger a Telegram alert with the job link |
@@ -168,7 +169,10 @@ filters:
 sending:
   auto_send: true                        # false = approve every email on Telegram
   daily_limit: 40
-  min_gap_seconds: 2160                  # 36 minutes
+  min_gap_seconds: 660                   # 11 minutes...
+  gap_jitter_seconds: 240                # ...plus random 0-4 minutes
+  send_hours: "09:30-19:30"              # India time; empty = any time
+  send_days: [Mon, Tue, Wed, Thu, Fri, Sat]
 ```
 
 </details>
@@ -199,7 +203,7 @@ agent/
 │   ├── mailer.py      Gmail SMTP with resume attachment
 │   └── db.py          SQLite: leads, statuses, seen URLs, AI usage, cache
 ├── resume/            resume source + generated PDF
-└── tests/             41 unit tests
+└── tests/             50 unit tests
 deploy/azure/          VM deploy script + systemd unit
 ```
 

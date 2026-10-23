@@ -97,5 +97,5 @@
     <animateMotion dur="8.0s" repeatCount="indefinite" path="M70,78 H830" keyPoints="0;1;1" keyTimes="0;0.85;1" calcMode="linear"/>
     <animate attributeName="opacity" dur="8.0s" repeatCount="indefinite" keyTimes="0;0.85;0.87;1" values="1;1;0;0"/>
   </circle>
-  <text x="450.0" y="196" text-anchor="middle" font-family="'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="12" fill="#6e7681">deadline-first queue · 36 min between sends · Telegram ping after each email</text>
+  <text x="450.0" y="196" text-anchor="middle" font-family="'Segoe UI',-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif" font-size="12" fill="#6e7681">deadline-first queue · 09:30–19:30 IST · ~13 min apart · Telegram ping after each email</text>
 </svg>

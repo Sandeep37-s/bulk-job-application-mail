@@ -1,8 +1,10 @@
 """Source-backed deadlines, earliest-deadline ordering and capacity estimates."""
 import json
+import logging
 import re
 from datetime import datetime, timedelta, timezone
 from . import db
+from .config import CFG
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
@@ -56,19 +58,56 @@ def expired(lead_id):
     return deadline is not None and deadline <= datetime.now(timezone.utc)
 
 
+DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
+
+
+def _window():
+    """(start, end, weekdays) in IST from config, or None to allow any time."""
+    s = CFG['sending']
+    if not s.get('send_hours'):
+        return None
+    start, end = (datetime.strptime(x.strip(), '%H:%M').time() for x in s['send_hours'].split('-'))
+    days = {DAYS.index(d[:3].lower()) for d in s.get('send_days') or DAYS}
+    return start, end, days
+
+
+def next_window_open(at):
+    """`at` itself if inside sending hours, otherwise the next opening (UTC)."""
+    w = _window()
+    if not w:
+        return at
+    start, end, days = w
+    local = at.astimezone(IST)
+    for offset in range(8):
+        day = (local + timedelta(days=offset)).date()
+        if day.weekday() not in days:
+            continue
+        opens = datetime.combine(day, start, IST)
+        closes = datetime.combine(day, end, IST)
+        if local < closes:
+            return max(local, opens).astimezone(timezone.utc)
+    return at
+
+
+def in_window(at):
+    return next_window_open(at) == at
+
+
 def projected_slots(leads, limit, gap, now=None):
-    """Estimated send time per lead: `gap` apart, at most `limit` per IST day."""
+    """Estimated send time per lead: `gap` apart, inside sending hours, at most `limit` per IST day."""
     now = now or datetime.now(timezone.utc)
-    slot = max(now, datetime.fromtimestamp(float(db.kv_get('last_send_ts', 0)), timezone.utc) + timedelta(seconds=gap))
-    day = db.day_start(slot)
-    count = db.used_today(at=slot) if day == db.day_start(now) else 0
+    stamp = lambda key: datetime.fromtimestamp(float(db.kv_get(key, 0)), timezone.utc)
+    slot = max(now, stamp('last_send_ts') + timedelta(seconds=gap), stamp('next_send_ts'))
+    day, count = db.day_start(now), db.used_today(at=now)
     out = []
     for lead in leads:
-        if db.day_start(slot) != day:
-            day, count = db.day_start(slot), 0
-        if count >= limit:
+        while True:
+            slot = next_window_open(slot)
+            if db.day_start(slot) != day:
+                day, count = db.day_start(slot), 0
+            if count < limit:
+                break
             slot = day + timedelta(days=1)
-            day, count = slot, 0
         out.append((lead, slot))
         count += 1
         slot += timedelta(seconds=gap)
@@ -81,18 +120,34 @@ def refresh_pending_deadlines():
     from .llm import extract_companies
     from .screening import save_experience, scam_reason
     now = datetime.now(timezone.utc).timestamp()
-    candidates = [l for l in db.leads_with_status('pending') if l.get('hiring_role') and l.get('job_url')]
-    candidates.sort(key=lambda l: float(db.kv_get(f'deadline_checked:{l["id"]}', 0)))
+    # Only drafts the sender can actually use: refreshing the rest is AI cost for nothing.
+    candidates = [l for l in db.leads_with_status('pending') if l.get('hiring_role') and l.get('job_url')
+                  and db.kv_get(f'auto_eligible:{l["id"]}') == '1']
+    # Never-checked drafts first (they block sending), then the stalest.
+    candidates.sort(key=lambda l: (db.kv_get(f'deadline_scanned:{l["id"]}') == '1',
+                                   float(db.kv_get(f'deadline_checked:{l["id"]}', 0))))
     for lead in candidates[:5]:
-        if now - float(db.kv_get(f'deadline_checked:{lead["id"]}', 0)) < 21600:
+        scanned = db.kv_get(f'deadline_scanned:{lead["id"]}') == '1'
+        # Re-reading a page already checked once rarely changes anything: once a day is enough.
+        if scanned and now - float(db.kv_get(f'deadline_checked:{lead["id"]}', 0)) < 86400:
             continue
         results = with_page_text([dict(url=lead['job_url'], title='', snippet='')], chars=10000)
-        if results[0]['snippet']:
-            for company in extract_companies(results):
+        try:
+            companies = extract_companies(results) if results[0]['snippet'] else []
+        except Exception:
+            # Leave it unscanned for a later retry, but rotate so it cannot block the others.
+            logging.getLogger(__name__).exception('Deadline refresh failed for lead %s', lead['id'])
+            db.kv_set(f'deadline_checked:{lead["id"]}', now)
+            continue
+        if companies:
+            for company in companies:
                 if (company.get('company') or '').casefold() == lead['company'].casefold() and (company.get('hiring_role') or '').casefold() == lead['hiring_role'].casefold():
                     save_evidence(lead['id'], company, results)
                     save_experience(lead['id'], company, results)
                     reason = scam_reason(company, results)
                     if reason:
                         db.update_lead(lead['id'], status='rejected_scam', error=reason)
+        # Checked once, even if the page was blocked or unchanged: an unknown deadline
+        # is allowed, but waiting forever for an unreadable page would stall the queue.
+        db.kv_set(f'deadline_scanned:{lead["id"]}', '1')
         db.kv_set(f'deadline_checked:{lead["id"]}', now)

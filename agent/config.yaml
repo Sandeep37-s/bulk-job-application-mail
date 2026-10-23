@@ -66,6 +66,9 @@ efficiency:
 sending:
   auto_send: true             # send eligible advertised AI/ML roles automatically
   daily_limit: 40             # maximum attempts, including uncertain SMTP deliveries
-  min_gap_seconds: 2160       # at least 36 minutes between attempts
+  min_gap_seconds: 660        # at least 11 minutes between attempts...
+  gap_jitter_seconds: 240     # ...plus a random 0-4 minutes, so about every 13 minutes
+  send_hours: "09:30-19:30"   # India time; empty = any time of day
+  send_days: [Mon, Tue, Wed, Thu, Fri, Sat]
   followup_after_days: 0      # 0 = never send a follow-up
 

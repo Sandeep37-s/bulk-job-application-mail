@@ -4,12 +4,18 @@ import re
 from . import db
 
 MAX_YEARS = 2  # 0-2 years or fresher/junior is sent; 3+ years is skipped
-SENIOR_TITLE = re.compile(r'\b(senior|sr|lead|principal|staff|manager)\b', re.I)
+SENIOR_TITLE = re.compile(r'\b(senior|sr|lead|principal|staff|manager|head|director|vp|vice president|chief|architect)\b', re.I)
 ENTRY = re.compile(r'\b(fresher|freshers|entry[- ]level|junior|jr|graduate|new grad|no experience)\b', re.I)
 YEARS = re.compile(r'(\d+(?:\.\d+)?)\s*(?:\+|plus)?\s*(?:(?:-|–|to)\s*\d+(?:\.\d+)?\s*\+?\s*)?(?:years?|yrs?)\b', re.I)
 
 FREE_MAIL = ('gmail.com', 'yahoo.com', 'yahoo.in', 'outlook.com', 'hotmail.com', 'live.com', 'rediffmail.com',
              'proton.me', 'protonmail.com', 'icloud.com', 'aol.com', 'zoho.com', 'yandex.com', 'gmx.com')
+# Recruitment agencies and job portals forward CVs instead of hiring; only the employer is emailed.
+AGENCY = re.compile(r'\b(staffing|recruit\w*|placements?|manpower|headhunt\w*|job ?portal|jobs? (?:board|portal)|'
+                    r'(?:hiring|talent|hr|career) (?:solutions?|services|consultants?)|consultancy services|'
+                    r'jobaaj|talentoj|teamware|questhiring|hyresnap|asiacruit|diverselynx|crossing hurdles)\b', re.I)
+# A fee phrase right after one of these words is a reassurance ("no registration fee"), not a request.
+NEGATED = re.compile(r"\b(no|never|not|zero|free|without|nil|don'?t|do not|won'?t|doesn'?t)\b[^.!?\n]{0,25}$", re.I)
 # Patterns that real employers do not use; any one means the post is not emailed.
 SCAM = [
     (r'\b(registration|joining|training|security|processing|onboarding|verification|documentation|kit|interview)\s+'
@@ -40,10 +46,15 @@ def experience_reason(role, experience_text):
     Fresher/junior in the title wins over a senior word ("Junior ML Engineer, Lead team")."""
     if role and SENIOR_TITLE.search(role) and not ENTRY.search(role):
         return f'senior title: {role}'
-    years = min_years(experience_text)
-    if years is not None and years > MAX_YEARS:
-        return f'needs {years:g}+ years: "{experience_text}"'
+    for text in (experience_text, role):  # titles like "AI Engineer (5+ years)" count too
+        years = min_years(text)
+        if years is not None and years > MAX_YEARS:
+            return f'needs {years:g}+ years: "{text}"'
     return None
+
+
+def is_agency(name):
+    return bool(AGENCY.search(name or ''))
 
 
 def source_text(company, results):
@@ -62,8 +73,9 @@ def verified_experience(company, results):
 def scam_reason(company, results):
     text = source_text(company, results) + ' ' + (company.get('contact_email') or '')
     for pattern, reason in SCAM:
-        if re.search(pattern, text, re.I):
-            return reason
+        for match in re.finditer(pattern, text, re.I):
+            if not NEGATED.search(text[max(0, match.start() - 40):match.start()]):
+                return reason
     return None
 
 

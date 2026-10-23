@@ -1,4 +1,5 @@
 """Conservative automatic sending with persistent quota and delivery state."""
+import random
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -6,8 +7,8 @@ from datetime import datetime, timedelta, timezone
 from . import db
 from .config import CFG
 from .mailer import send_email
-from .deadlines import deadline_for, expired, metadata
-from .screening import experience_reason, is_free_mail
+from .deadlines import deadline_for, expired, in_window, metadata
+from .screening import experience_reason, is_agency, is_free_mail
 
 
 def relevant_role(role):
@@ -87,6 +88,9 @@ def send_one(lead_id):
     if reason:
         db.update_lead(lead_id, status='skipped_experience', error=reason)
         return f'Skipped: {reason}.'
+    if is_agency(lead.get('company')):
+        db.update_lead(lead_id, status='skipped_agency', error='recruitment agency or job portal')
+        return 'Skipped: recruitment agency or job portal.'
     if is_free_mail(lead.get('email')) and db.kv_get(f'approved:{lead_id}') != '1':
         db.kv_set(f'auto_eligible:{lead_id}', '0')
         db.kv_set(f'hold:{lead_id}', 'Only a personal email address (not the company domain) was found. Check the post is genuine before sending.')
@@ -97,25 +101,34 @@ def send_one(lead_id):
         return 'Missing verified deadline: manual review required.'
     fallback = not lead.get('hiring_role') and db.kv_get(f'outreach_kind:{lead_id}') == 'company'
     if (not relevant_role(lead.get('hiring_role')) and not fallback) or db.kv_get(f'auto_eligible:{lead_id}') != '1':
+        db.kv_set(f'auto_eligible:{lead_id}', '0')  # leave the queue instead of being retried every minute
         return 'Not eligible: requires a verified advertised AI/ML role.'
     if not lead.get('email_source') or not lead.get('subject') or not lead.get('body'):
+        db.kv_set(f'auto_eligible:{lead_id}', '0')
         return 'Missing verified contact or draft.'
+    if not in_window(datetime.now(timezone.utc)):
+        return 'Outside sending hours.'
     with db.conn() as c:
         c.execute('BEGIN IMMEDIATE')
-        values = dict(c.execute("SELECT k,v FROM kv WHERE k IN ('paused','sending_paused','last_send_ts')"))
+        values = dict(c.execute("SELECT k,v FROM kv WHERE k IN ('paused','sending_paused','last_send_ts','next_send_ts')"))
         if values.get('paused') == '1' or values.get('sending_paused') == '1':
             return 'Sending paused.'
-        if time.time() - float(values.get('last_send_ts', 0)) < settings['min_gap_seconds']:
+        ready_at = max(float(values.get('last_send_ts', 0)) + settings['min_gap_seconds'], float(values.get('next_send_ts', 0)))
+        if time.time() < ready_at:
             return 'Waiting for the next send slot.'
         if db.used_today(c) >= settings['daily_limit']:
             return 'Daily sending limit reached; resumes at midnight IST.'
         if c.execute("SELECT 1 FROM leads WHERE lower(email)=lower(?) AND status IN ('sent','sending','send_uncertain')", (lead['email'],)).fetchone():
+            c.execute("UPDATE leads SET status='duplicate' WHERE id=?", (lead_id,))
             return 'This recipient has already been contacted or has an unresolved delivery.'
         changed = c.execute("UPDATE leads SET status='sending' WHERE id=? AND status='pending'", (lead_id,)).rowcount
         if not changed:
             return 'Already being handled.'
         c.execute('INSERT INTO send_attempts VALUES (?, ?)', (lead_id, db.now()))
         c.execute('INSERT OR REPLACE INTO kv VALUES (?, ?)', ('last_send_ts', str(time.time())))
+        # A random extra wait keeps sends from landing on a fixed, machine-like rhythm.
+        jitter = random.uniform(0, settings.get('gap_jitter_seconds', 0))
+        c.execute('INSERT OR REPLACE INTO kv VALUES (?, ?)', ('next_send_ts', str(time.time() + settings['min_gap_seconds'] + jitter)))
     try:
         send_email(lead['email'], lead['subject'], lead['body'])
     except Exception as exc:
