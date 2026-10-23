@@ -79,6 +79,7 @@ def refresh_pending_deadlines():
     """Bounded refresh also covers drafts created before deadline support."""
     from .search import with_page_text
     from .llm import extract_companies
+    from .screening import save_experience, scam_reason
     now = datetime.now(timezone.utc).timestamp()
     candidates = [l for l in db.leads_with_status('pending') if l.get('hiring_role') and l.get('job_url')]
     candidates.sort(key=lambda l: float(db.kv_get(f'deadline_checked:{l["id"]}', 0)))
@@ -90,4 +91,8 @@ def refresh_pending_deadlines():
             for company in extract_companies(results):
                 if (company.get('company') or '').casefold() == lead['company'].casefold() and (company.get('hiring_role') or '').casefold() == lead['hiring_role'].casefold():
                     save_evidence(lead['id'], company, results)
+                    save_experience(lead['id'], company, results)
+                    reason = scam_reason(company, results)
+                    if reason:
+                        db.update_lead(lead['id'], status='rejected_scam', error=reason)
         db.kv_set(f'deadline_checked:{lead["id"]}', now)

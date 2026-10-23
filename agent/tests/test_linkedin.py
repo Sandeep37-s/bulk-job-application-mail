@@ -41,7 +41,7 @@ class LinkedInTests(unittest.TestCase):
             enriched = with_page_text(self.results)
         self.assertIn('recruiter@gmail.com', enriched[0]['snippet'])
 
-    def test_post_contact_preferred_and_draft_pending(self):
+    def test_company_domain_preferred_over_personal_post_email(self):
         with patch('jobagent.pipeline.db') as db, \
              patch('jobagent.pipeline.scrape_site', return_value=('AI products', ['hr@acme.ai'],
                    {'hr@acme.ai': 'https://acme.ai/careers'})), \
@@ -50,9 +50,34 @@ class LinkedInTests(unittest.TestCase):
             db.add_lead.return_value = 42
             self.assertEqual(process_company(self.company, self.results), 42)
             fields = db.add_lead.call_args.kwargs
+            self.assertEqual(fields['email'], 'hr@acme.ai')
+            self.assertIn('recruiter@gmail.com', fields['all_emails'])
+            db.update_lead.assert_called_once_with(42, subject='Application', body='Draft', status='pending')
+            db.kv_set.assert_any_call('auto_eligible:42', '1')
+
+    def test_personal_post_email_only_is_held(self):
+        with patch('jobagent.pipeline.db') as db, \
+             patch('jobagent.pipeline.scrape_site', return_value=('AI products', [], {})), \
+             patch('jobagent.pipeline.compose_email', return_value=('Application', 'Draft')):
+            db.domain_known.return_value = False
+            db.add_lead.return_value = 42
+            self.assertEqual(process_company(self.company, self.results), 42)
+            fields = db.add_lead.call_args.kwargs
             self.assertEqual(fields['email'], 'recruiter@gmail.com')
             self.assertEqual(fields['email_source'], POST)
-            db.update_lead.assert_called_once_with(42, subject='Application', body='Draft', status='pending')
+            db.kv_set.assert_any_call('auto_eligible:42', '0')
+
+    def test_senior_or_fake_post_not_drafted(self):
+        for change in [dict(hiring_role='Senior AI Engineer'), dict(experience_text='5+ years of experience')]:
+            company = dict(self.company, **change)
+            results = [dict(self.results[0], snippet=self.results[0]['snippet'] + ' 5+ years of experience')]
+            with patch('jobagent.pipeline.db'), patch('jobagent.pipeline.scrape_site') as scrape:
+                self.assertIsNone(process_company(company, results), change)
+                scrape.assert_not_called()
+        results = [dict(self.results[0], snippet=self.results[0]['snippet'] + ' Registration fee Rs 999')]
+        with patch('jobagent.pipeline.db'), patch('jobagent.pipeline.scrape_site') as scrape:
+            self.assertIsNone(process_company(self.company, results))
+            scrape.assert_not_called()
 
     def test_no_post_email_keeps_website_contact(self):
         self.results[0]['snippet'] = 'We are hiring'

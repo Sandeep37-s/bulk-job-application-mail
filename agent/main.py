@@ -67,8 +67,8 @@ def buttons(lead_id):
     ])
 
 
-async def post_card(bot, lead):
-    msg = await bot.send_message(CHAT_ID, card_text(lead), parse_mode="HTML", reply_markup=buttons(lead["id"]),
+async def post_card(bot, lead, status_line=""):
+    msg = await bot.send_message(CHAT_ID, card_text(lead, status_line), parse_mode="HTML", reply_markup=buttons(lead["id"]),
                                  disable_web_page_preview=True)
     db.kv_set(f"msg:{msg.message_id}", lead["id"])
 
@@ -119,8 +119,18 @@ async def send_pending(context):
                 await context.bot.send_message(CHAT_ID, status)
             except Exception:
                 log.exception('Telegram notification failed; delivery state retained')
-        if not status.startswith('Not eligible') and not status.startswith('Missing') and not status.startswith('This recipient'):
+        if status.startswith('Held for review'):
+            await post_held(context.bot, lead['id'])
+        if not status.startswith(('Not eligible', 'Missing', 'This recipient', 'Skipped', 'Held for review')):
             break
+
+
+async def post_held(bot, lead_id):
+    """Drafts that need a human look (e.g. personal email address) go to Telegram with Send/Skip."""
+    try:
+        await post_card(bot, db.get_lead(lead_id), f"⚠️ <b>Not sent automatically:</b> {html.escape(db.kv_get(f'hold:{lead_id}') or '')}")
+    except Exception:
+        log.exception('Could not post held draft %s', lead_id)
 
 
 # ---------- scheduled cycle ----------
@@ -144,7 +154,9 @@ async def cycle(context: ContextTypes.DEFAULT_TYPE, force=False):
             return
     for lead_id in ids:
         lead = db.get_lead(lead_id)
-        if not SEND['auto_send']:
+        if db.kv_get(f"hold:{lead_id}"):
+            await post_held(context.bot, lead_id)
+        elif not SEND['auto_send']:
             await post_card(context.bot, lead)
     log.info("cycle done: %d new drafts", len(ids))
 
@@ -187,6 +199,11 @@ async def on_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lead = db.get_lead(lead_id)
     if action == "send":
         await q.answer("Sending…")
+        if db.kv_get(f"hold:{lead_id}"):
+            # You checked the held draft yourself: release it to the normal sender checks.
+            db.kv_set(f"approved:{lead_id}", '1')
+            db.kv_set(f"auto_eligible:{lead_id}", '1')
+            db.kv_set(f"hold:{lead_id}", '')
         status = await do_send(lead_id)
         done = db.get_lead(lead_id)["status"] == "sent"
         await q.edit_message_text(card_text(db.get_lead(lead_id), status), parse_mode="HTML",

@@ -207,3 +207,22 @@ agent/
   resume/              resume source + generated PDF
 deploy/azure/          VM deploy script + systemd unit
 ```
+
+## Experience level and fake-post screening
+
+Hiring posts (LinkedIn posts included) are screened before any website scraping
+or email drafting, so rejected posts cost no further AI calls:
+
+- Sent: 0-2 years, fresher/entry-level/junior, or experience not mentioned.
+- Skipped: 3+ years, or Senior/Sr/Lead/Principal/Staff/Manager in the title. The
+  experience quote must appear in the source text; invented quotes are ignored.
+- Rejected as fake: posts asking for a registration/training/security fee or
+  deposit, promising a guaranteed job or no interview, quick daily/weekly
+  earnings, task-based income, or WhatsApp/Telegram-only applications.
+- A company-domain address found on the company's own site is preferred over a
+  personal Gmail/Yahoo/Outlook address in a post. If only a personal address
+  exists, the draft is held and posted to Telegram with Send/Skip instead of
+  being sent automatically.
+
+Queued drafts get the same title, experience and personal-address checks before
+sending; the hourly source refresh also re-checks them for fee/scam wording.

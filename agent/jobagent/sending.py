@@ -7,6 +7,7 @@ from . import db
 from .config import CFG
 from .mailer import send_email
 from .deadlines import deadline_for, expired, metadata
+from .screening import experience_reason, is_free_mail
 
 
 def relevant_role(role):
@@ -82,6 +83,14 @@ def send_one(lead_id):
     if expired(lead_id):
         db.update_lead(lead_id, status='expired')
         return 'Expired: application deadline has passed.'
+    reason = experience_reason(lead.get('hiring_role'), db.kv_get(f'experience:{lead_id}'))
+    if reason:
+        db.update_lead(lead_id, status='skipped_experience', error=reason)
+        return f'Skipped: {reason}.'
+    if is_free_mail(lead.get('email')) and db.kv_get(f'approved:{lead_id}') != '1':
+        db.kv_set(f'auto_eligible:{lead_id}', '0')
+        db.kv_set(f'hold:{lead_id}', 'Only a personal email address (not the company domain) was found. Check the post is genuine before sending.')
+        return 'Held for review: personal email address.'
     if lead.get('hiring_role') and db.kv_get(f'deadline_scanned:{lead_id}') != '1':
         return 'Missing deadline check: waiting for source refresh.'
     if metadata(lead_id).get('quote') and not deadline_for(lead_id):
