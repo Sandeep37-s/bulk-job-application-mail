@@ -14,12 +14,16 @@ log = logging.getLogger(__name__)
 EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 PAGES = ["", "careers", "career", "jobs", "contact", "contact-us", "about", "about-us", "join-us", "work-with-us", "join", "team"]
 JUNK = ("noreply", "no-reply", "example.", "sentry", "wixpress", "domain.com", "email.com", "yourname",
-        "privacy", "abuse", "support@", "billing", "sales@", "press@", "legal@")
+        "privacy", "abuse", "support@", "billing", "sales@", "press@", "legal@",
+        # Placeholder addresses copied from sample text on web pages; these bounce.
+        "@company.", "companydetails", "yourcompany", "@mail.co", "john.doe", "jane.doe", "johndoe", "janedoe",
+        "test@", "demo@", "admin@", "webmaster@", "marketing@", "media@", "pr@", "partner", "accounts@", "finance@")
 JUNK_EXT = (".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp")
-# Lower index = better person to receive a job application.
+# Lower index = better person to receive a job application. A named person
+# (no keyword match) ranks between founders and generic inboxes.
 PRIORITY = [("hr", "career", "job", "talent", "hiring", "recruit", "people"),
-            ("founder", "ceo", "cto"),
-            ("hello", "contact", "info", "team", "connect", "hi@")]
+            ("founder", "ceo", "cto")]
+GENERIC = ("hello", "contact", "info", "team", "connect", "hi@", "office", "enquir", "inquir")
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
                          "(KHTML, like Gecko) Chrome/126 Safari/537.36"}
 
@@ -87,7 +91,8 @@ def scrape_site(domain):
 def clean_emails(emails, domain=None):
     out = []
     for e in {e.strip().strip(".").lower() for e in emails}:
-        if not EMAIL_RE.fullmatch(e) or any(j in e for j in JUNK) or e.endswith(JUNK_EXT) or len(e) > 60 or is_blocked(e):
+        if (not EMAIL_RE.fullmatch(e) or any(j in e for j in JUNK) or e.endswith(JUNK_EXT) or len(e) > 60
+                or is_blocked(e) or e in CFG["filters"].get("bounced", [])):
             continue
         out.append(e)
     return sorted(out, key=lambda e: rank(e, domain))
@@ -111,7 +116,8 @@ def listed_contact(company, results):
 def rank(email, domain):
     local, _, host = email.partition("@")
     same = 0 if domain and (host == domain or host.endswith("." + domain) or domain.endswith(host)) else 1
-    tier = next((i for i, keys in enumerate(PRIORITY) if any(k in local or k in email for k in keys)), len(PRIORITY))
+    tier = next((i for i, keys in enumerate(PRIORITY) if any(k in local or k in email for k in keys)),
+                len(PRIORITY) + any(k in local or k in email for k in GENERIC))
     return (same, tier, len(email))
 
 

@@ -90,7 +90,10 @@ def extract_companies(results):
 
 COMPOSE_SYSTEM = """You write short cold job-application emails for {name}.
 Rules:
-- 90-140 words in the body (signature not counted). Plain text, no markdown, no emojis, no placeholders.
+- 70-110 words in the body (signature not counted). Plain text, no markdown, no emojis, no placeholders,
+  plain ASCII punctuation (straight quotes, no dashes or smart apostrophes).
+- Short paragraphs of 1-3 sentences separated by blank lines, never one long block. A recruiter
+  should understand who he is and why he fits in 10 seconds.
 - Sound like a person, not a template: no "I am impressed by", "I am excited", "aligns with my passion".
 - Start with "Hi {{greeting}}," using the greeting given.
 - First line: something specific about what the company builds, so it is clearly not a mass email.
@@ -102,7 +105,8 @@ Rules:
   Dhruva Technology beyond his job title there.
 - Mention the resume is attached. End with a one-line call to action, then the signature:
 {signature}
-- Subject: under 9 words, specific to the role or company.
+- Subject: under 10 words. With a hiring role: "<role> application - {name}, RAG/LLM engineer".
+  Without one: "AI/GenAI engineer for <company>? - {name}". Never "Inquiry about ...".
 Background facts:
 {facts}
 Return JSON: {{"subject": str, "body": str}}"""

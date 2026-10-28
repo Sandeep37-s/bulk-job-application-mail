@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from . import db
 from .config import CFG
+from .contacts import clean_emails
 from .mailer import send_email
 from .deadlines import deadline_for, expired, in_window, metadata
 from .screening import experience_reason, is_agency, is_free_mail
@@ -88,6 +89,9 @@ def send_one(lead_id):
     if reason:
         db.update_lead(lead_id, status='skipped_experience', error=reason)
         return f'Skipped: {reason}.'
+    if not clean_emails([lead.get('email') or '']):
+        db.update_lead(lead_id, status='skipped_bad_email', error='placeholder, unwanted or bounced address')
+        return 'Skipped: placeholder, unwanted or bounced address.'
     if is_agency(lead.get('company')):
         db.update_lead(lead_id, status='skipped_agency', error='recruitment agency or job portal')
         return 'Skipped: recruitment agency or job portal.'

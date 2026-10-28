@@ -54,6 +54,9 @@ filters:
   max_employees: 200          # "small company" cutoff (LLM estimate)
   # Never email these (matched anywhere in the company name, website or email address).
   never_contact: [dhruva, dhurva]
+  # Addresses that bounced; never email them again.
+  bounced: [vivek@algosoftech.in, hr@raushang4.tech, info@hanux.org, himanshu.jangir@vegavid.com,
+            jane.doe@niyog.co, recruitment@polluxa.com, priya@company.com, info@companydetails.in, neuros@mail.co]
   # Big companies are skipped: their HR inboxes don't answer cold emails.
   blocklist: [google, microsoft, amazon, meta, apple, ibm, accenture, tcs, infosys, wipro, hcl, cognizant,
               capgemini, deloitte, pwc, ey, kpmg, oracle, adobe, samsung, paytm, zomato, flipkart, nvidia,
