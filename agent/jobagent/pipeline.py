@@ -16,17 +16,20 @@ log = logging.getLogger(__name__)
 
 def queries(cycle_number=0):
     s = CFG["search"]
+    pool = s['cities_for_queries']
+    per = min(s.get('cities_per_cycle', len(pool)), len(pool))
+    cities = [pool[(cycle_number * per + i) % len(pool)] for i in range(per)]
     # Rotate combinations so each cycle explores a different role and source.
     variants = [f'"{role}" {city} {suffix}'
                 for role in CFG['profile']['target_roles']
-                for city in s['cities_for_queries']
+                for city in cities
                 for suffix in ('startup hiring', 'site:linkedin.com/posts hiring email',
                                'site:linkedin.com/feed/update hiring')]
     count = min(s.get('rotating_queries', 9), len(variants))
     for i in range(count):
         yield variants[(cycle_number * count + i) % len(variants)]
     for q in s["queries"]:
-        for city in s["cities_for_queries"] if "{city}" in q else [None]:
+        for city in cities if "{city}" in q else [None]:
             yield q.format(city=city) if city else q
 
 

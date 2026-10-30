@@ -33,9 +33,10 @@ def ask_json(system, user, temperature=0.2):
     return json.loads(resp.choices[0].message.content)
 
 
-EXTRACT_SYSTEM = """You find small AI companies in India that could hire an AI/ML engineer.
+EXTRACT_SYSTEM = """You find AI startups and small AI companies in India that could hire an AI/ML engineer.
 From the web search results, list each distinct COMPANY (not job boards, not news sites, not
-training institutes) that appears to be located in one of these cities: {cities}.
+training institutes) that appears to be located in India, e.g. one of: {cities}.
+Report "city" as "<city>, India" (or "Remote, India" for a remote role open to India).
 Return JSON: {{"companies": [ {{
   "company": str,
   "website": str or null      (the company's own site, e.g. "acme.ai"; never a job-board URL),

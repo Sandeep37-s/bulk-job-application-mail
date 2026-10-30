@@ -23,14 +23,22 @@ profile:
 resume_path: resume/Sandeep_Kumar_Resume.pdf
 
 search:
-  cities: [Delhi, New Delhi, Noida, Greater Noida, Gurgaon, Gurugram, Delhi NCR]   # leads outside these are dropped
-  every_hours: 3
+  # Leads whose city matches none of these are dropped ("India" also keeps any lead the
+  # search tagged with the country, e.g. "Surat, India").
+  cities: [India, Bangalore, Bengaluru, Hyderabad, Pune, Mumbai, Navi Mumbai, Thane, Chennai, Delhi, New Delhi,
+           Noida, Greater Noida, Gurgaon, Gurugram, Delhi NCR, Faridabad, Ghaziabad, Ahmedabad, Gandhinagar,
+           Kolkata, Jaipur, Kochi, Cochin, Thiruvananthapuram, Trivandrum, Coimbatore, Indore, Chandigarh,
+           Mohali, Bhubaneswar, Lucknow, Nagpur, Vadodara, Surat, Mysore, Mysuru, Visakhapatnam, Mangalore, Bhopal]
+  every_hours: 6
   results_per_query: 20
   revisit_days: 3             # refresh pages that can gain new openings
   retry_days: 3               # retry missing contacts or failed draft generation
   rotating_queries: 9        # additional role/city/source combinations per cycle
-  # {city} is replaced with each entry of cities_for_queries.
-  cities_for_queries: [Delhi, Noida, Gurgaon]
+  # {city} is replaced with cities_per_cycle entries of cities_for_queries, rotating each
+  # cycle, so covering more cities does not add searches or AI calls per cycle.
+  cities_for_queries: [Bangalore, Hyderabad, Pune, Delhi, Mumbai, Noida, Gurgaon, Chennai, Ahmedabad,
+                       Kolkata, Jaipur, Kochi, Indore, Chandigarh, Coimbatore, Thiruvananthapuram, India, remote India]
+  cities_per_cycle: 3
   queries:
     - AI engineer job opening startup {city}
     - GenAI engineer hiring {city} startup
@@ -38,7 +46,7 @@ search:
     - machine learning engineer job {city} startup
     - AI startup {city} careers
     - top AI startups in {city} 2026
-    - list of generative AI companies {city} NCR
+    - funded generative AI startup {city} hiring
     - generative AI startup {city}
     - site:wellfound.com AI startup {city}
     - site:cutshort.io AI engineer {city}
@@ -51,7 +59,7 @@ search:
     - 'AI startup {city} jobs hiring'
 
 filters:
-  max_employees: 200          # "small company" cutoff (LLM estimate)
+  max_employees: 500          # startup / small-company cutoff (LLM estimate)
   # Never email these (matched anywhere in the company name, website or email address).
   never_contact: [dhruva, dhurva]
   # Addresses that bounced; never email them again.
