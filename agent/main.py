@@ -19,8 +19,7 @@ from jobagent import db
 from jobagent.config import CFG, env
 from jobagent.sending import send_one, pending_queue, sleep_state
 from jobagent.pipeline import redraft, run_cycle
-from jobagent.deadlines import deadline_for, metadata, projected_slots, refresh_pending_deadlines, IST
-from datetime import datetime, timedelta, timezone
+from jobagent.deadlines import refresh_pending_deadlines
 
 sys.stdout.reconfigure(encoding="utf-8")
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
@@ -84,30 +83,9 @@ async def do_send(lead_id):
 async def send_pending(context):
     if not SEND['auto_send'] or send_lock.locked():
         return
-    queue = pending_queue()
-    # Plan with the longest possible gap so deadline warnings err on the early side.
-    gap = SEND['min_gap_seconds'] + SEND.get('gap_jitter_seconds', 0)
-    for lead, slot in projected_slots(queue, SEND['daily_limit'], gap):
-        meta = metadata(lead['id'])
-        deadline = deadline_for(lead['id'])
-        paused = db.kv_get('paused') == '1' or db.kv_get('sending_paused') == '1'
-        uncertain = meta.get('quote') and not deadline
-        at_risk = deadline and (slot >= deadline - timedelta(minutes=30) or (paused and deadline < datetime.now(timezone.utc) + timedelta(days=1)))
-        if uncertain or at_risk:
-            key = f"deadline_alert:{lead['id']}:{meta.get('quote')}"
-            if db.kv_get(key) != '1':
-                reason = 'Deadline needs manual verification' if uncertain else 'Automatic sending may miss the deadline'
-                message = (f"{reason}: {lead['company']} — {lead['hiring_role']}\n"
-                           f"Source says: {meta.get('quote')}\n"
-                           f"Earliest estimated send: {slot.astimezone(IST):%d %b %Y %H:%M} IST\n"
-                           f"Job: {lead.get('job_url') or meta.get('source')}\n"
-                           f"Email: {lead.get('email')}\nConsider the application link now. If you apply manually, use /skip {lead['id']} to remove this queued email.")
-                try:
-                    await context.bot.send_message(CHAT_ID, message)
-                    db.kv_set(key, '1')
-                except Exception:
-                    log.exception('Deadline alert failed; will retry')
-    for lead in queue:
+    # Deadlines are handled without you: the queue sends the nearest deadline first,
+    # and closed or past-dated posts are dropped as expired.
+    for lead in pending_queue():
         # Finish ongoing discovery before taking a fallback slot: it may find
         # an advertised opening that should take priority.
         if not lead.get('hiring_role') and cycle_lock.locked():

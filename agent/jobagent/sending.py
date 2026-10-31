@@ -8,7 +8,7 @@ from . import db
 from .config import CFG
 from .contacts import clean_emails
 from .mailer import send_email
-from .deadlines import deadline_for, expired, in_window, metadata
+from .deadlines import deadline_for, expired, in_window
 from .screening import experience_reason, is_agency, is_free_mail
 
 
@@ -59,19 +59,14 @@ def pending_queue():
     return sorted(active, key=lambda lead: (not bool(lead.get('hiring_role')), deadline_for(lead['id']) or far_future, lead['id']))
 
 
-def sendable(lead):
-    """Queued drafts that can go out without manual review."""
-    return not (metadata(lead['id']).get('quote') and not deadline_for(lead['id']))
-
-
 def sleep_state(limit):
     """'full': today's cap is used, so no searching or AI work until midnight IST.
-    'queued': enough sendable drafts already wait to fill today's cap, so skip new searches.
+    'queued': enough queued drafts already wait to fill today's cap, so skip new searches.
     None: keep working."""
     used = db.used_today()
     if used >= limit:
         return 'full'
-    if used + sum(sendable(lead) for lead in pending_queue()) >= limit:
+    if used + len(pending_queue()) >= limit:
         return 'queued'
     return None
 
@@ -101,8 +96,6 @@ def send_one(lead_id):
         return 'Held for review: personal email address.'
     if lead.get('hiring_role') and db.kv_get(f'deadline_scanned:{lead_id}') != '1':
         return 'Missing deadline check: waiting for source refresh.'
-    if metadata(lead_id).get('quote') and not deadline_for(lead_id):
-        return 'Missing verified deadline: manual review required.'
     fallback = not lead.get('hiring_role') and db.kv_get(f'outreach_kind:{lead_id}') == 'company'
     if (not relevant_role(lead.get('hiring_role')) and not fallback) or db.kv_get(f'auto_eligible:{lead_id}') != '1':
         db.kv_set(f'auto_eligible:{lead_id}', '0')  # leave the queue instead of being retried every minute

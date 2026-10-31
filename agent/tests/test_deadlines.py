@@ -69,7 +69,7 @@ class DeadlineTests(unittest.TestCase):
             db.add_lead(domain=f'used{i}.ai', sent_at=db.now(), status='sent')
         self.assertEqual(sending.sleep_state(40), 'queued')  # 39 sent + 1 queued fills today
         db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': 'Apply by tomorrow'}))
-        self.assertIsNone(sending.sleep_state(40))  # held for review: does not count
+        self.assertEqual(sending.sleep_state(40), 'queued')  # unverified deadline still sends
         db.add_lead(domain='last.ai', sent_at=db.now(), status='sent')
         self.assertEqual(sending.sleep_state(40), 'full')
 
@@ -80,11 +80,21 @@ class DeadlineTests(unittest.TestCase):
         deadlines.save_evidence(self.lead, company, [dict(url=company['source_url'], snippet=company['deadline_text'])])
         self.assertEqual(deadlines.deadline_for(self.lead).astimezone(deadlines.IST).day, 25)
 
-    def test_ambiguous_deadline_held(self):
-        db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': 'Apply by tomorrow'}))
+    def test_ambiguous_deadline_sent_automatically(self):
+        db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': 'Hiring closes once both positions are filled.'}))
         with patch.object(sending, 'send_email') as smtp:
-            self.assertIn('manual review', sending.send_one(self.lead))
-            smtp.assert_not_called()
+            self.assertTrue(sending.send_one(self.lead).startswith('Sent to'))
+            smtp.assert_called_once()
+
+    def test_closed_or_past_dated_post_expires(self):
+        for quote in ('No longer accepting applications', 'Date : Monday, 12 Oct 2025  Time : 12:00 PM'):
+            db.update_lead(self.lead, status='pending')
+            db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': quote}))
+            with patch.object(sending, 'send_email') as smtp:
+                self.assertIn('Expired', sending.send_one(self.lead))
+                smtp.assert_not_called()
+        db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': 'Walk-in on 12 Oct 2099'}))
+        self.assertFalse(deadlines.expired(self.lead))
 
     def test_date_formats_and_no_guessing(self):
         self.assertIsNotNone(deadlines.parse_deadline('Deadline: 25 October 2026'))

@@ -53,9 +53,39 @@ def deadline_for(lead_id):
     return datetime.fromisoformat(value) if value else None
 
 
+CLOSED_RE = re.compile(r'(?i)no longer accepting|not accepting|applications? (?:are |is |have |has )?(?:now )?closed'
+                       r'|hiring (?:is )?closed|position (?:has been |is )?filled|vacancy (?:has been |is )?filled'
+                       r'|(?:job|posting|role|opening) (?:has )?(?:expired|closed)')
+DATE_PATTERNS = [(r'\b\d{4}-\d{2}-\d{2}\b', ['%Y-%m-%d']),
+                 (r'\b\d{1,2} [A-Za-z]{3,9},? \d{4}\b', ['%d %B %Y', '%d %b %Y']),
+                 (r'\b[A-Za-z]{3,9} \d{1,2},? \d{4}\b', ['%B %d %Y', '%b %d %Y'])]
+
+
+def quote_dates(quote):
+    """Every full date written in the quote, as end of that day in IST."""
+    out = []
+    for pattern, formats in DATE_PATTERNS:
+        for match in re.findall(pattern, quote or ''):
+            for fmt in formats:
+                try:
+                    day = datetime.strptime(match.replace(',', ''), fmt)
+                    out.append(day.replace(hour=23, minute=59, second=59, tzinfo=IST))
+                    break
+                except ValueError:
+                    pass
+    return out
+
+
 def expired(lead_id):
+    now = datetime.now(timezone.utc)
     deadline = deadline_for(lead_id)
-    return deadline is not None and deadline <= datetime.now(timezone.utc)
+    if deadline is not None:
+        return deadline <= now
+    # No verified deadline: still never send to a post that says it is closed,
+    # or whose every date (e.g. a walk-in day) has already passed.
+    quote = metadata(lead_id).get('quote') or ''
+    dates = quote_dates(quote)
+    return bool(CLOSED_RE.search(quote)) or (bool(dates) and max(dates) <= now)
 
 
 DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun']
