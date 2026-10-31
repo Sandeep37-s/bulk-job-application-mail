@@ -96,6 +96,15 @@ class DeadlineTests(unittest.TestCase):
         db.kv_set(f'deadline:{self.lead}', json.dumps({'at': None, 'quote': 'Walk-in on 12 Oct 2099'}))
         self.assertFalse(deadlines.expired(self.lead))
 
+    def test_walk_in_detected(self):
+        lead = db.get_lead(self.lead)
+        self.assertEqual(deadlines.walk_in(lead), '')
+        deadlines.save_evidence(self.lead, dict(walk_in_text='Walk-in drive: 5 Nov 2099, 10 AM, Sector 62 Noida'), [])
+        self.assertIn('Sector 62', deadlines.walk_in(lead))
+        self.assertFalse(deadlines.expired(self.lead))
+        db.kv_set(f'walk_in:{self.lead}', 'Walk-in drive: 5 Nov 2020, 10 AM')
+        self.assertTrue(deadlines.expired(self.lead))
+
     def test_date_formats_and_no_guessing(self):
         self.assertIsNotNone(deadlines.parse_deadline('Deadline: 25 October 2026'))
         self.assertIsNone(deadlines.parse_deadline('Apply by tomorrow'))

@@ -19,7 +19,7 @@ from jobagent import db
 from jobagent.config import CFG, env
 from jobagent.sending import send_one, pending_queue, sleep_state
 from jobagent.pipeline import redraft, run_cycle
-from jobagent.deadlines import refresh_pending_deadlines
+from jobagent.deadlines import refresh_pending_deadlines, walk_in
 
 sys.stdout.reconfigure(encoding="utf-8")
 logging.basicConfig(format="%(asctime)s %(levelname)s %(name)s: %(message)s", level=logging.INFO)
@@ -83,9 +83,23 @@ async def do_send(lead_id):
 async def send_pending(context):
     if not SEND['auto_send'] or send_lock.locked():
         return
+    queue = pending_queue()
+    for lead in queue:
+        # Walk-ins need you there in person, so flag them once; the email still goes out as usual.
+        details = walk_in(lead)
+        if details and db.kv_get(f"walk_in_alert:{lead['id']}") != '1':
+            try:
+                await context.bot.send_message(CHAT_ID, (
+                    f"🚶 Walk-in interview: {lead['company']} — {lead.get('hiring_role') or 'AI/ML role'}\n"
+                    f"{details}\n"
+                    f"Job: {lead.get('job_url') or lead.get('website')}\n"
+                    f"The email to {lead['email']} will still be sent automatically."), disable_web_page_preview=True)
+                db.kv_set(f"walk_in_alert:{lead['id']}", '1')
+            except Exception:
+                log.exception('Walk-in alert failed; will retry')
     # Deadlines are handled without you: the queue sends the nearest deadline first,
     # and closed or past-dated posts are dropped as expired.
-    for lead in pending_queue():
+    for lead in queue:
         # Finish ongoing discovery before taking a fallback slot: it may find
         # an advertised opening that should take priority.
         if not lead.get('hiring_role') and cycle_lock.locked():

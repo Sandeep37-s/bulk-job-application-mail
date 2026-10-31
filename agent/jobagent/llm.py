@@ -48,6 +48,7 @@ Return JSON: {{"companies": [ {{
   "job_url": str or null,
   "source_url": str          (exact URL of the result supporting this company and contact),
   "deadline_text": str or null (exact short quote containing application deadline and date/time from this job source; null if absent; never invent or resolve relative dates),
+  "walk_in_text": str or null (exact short quote with the walk-in interview/drive date, time and venue; null if the source is not a walk-in),
   "experience_text": str or null (exact short quote of the required years of experience or seniority, e.g. "3-5 years of experience"; null if absent),
   "contact_email": str or null (only if literally present in the result text),
   "why": str                  (one line: why this company is worth emailing)

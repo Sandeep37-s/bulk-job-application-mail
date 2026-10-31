@@ -30,8 +30,22 @@ def parse_deadline(quote):
     return None
 
 
+WALK_IN_RE = re.compile(r'(?i)walk[\s-]*ins?\b')
+
+
+def walk_in(lead):
+    """Walk-in interview details for a lead, or '' when it is not one."""
+    text = db.kv_get(f'walk_in:{lead["id"]}') or ''
+    if text:
+        return text
+    return next((t for t in (metadata(lead['id']).get('quote'), lead.get('hiring_role')) if t and WALK_IN_RE.search(t)), '')
+
+
 def save_evidence(lead_id, company, results):
     db.kv_set(f'deadline_scanned:{lead_id}', '1')
+    walk = (company.get('walk_in_text') or '').strip()
+    if walk and len(walk) <= 300:
+        db.kv_set(f'walk_in:{lead_id}', walk)
     quote = (company.get('deadline_text') or '').strip()
     source = company.get('source_url') or company.get('job_url')
     if not quote or len(quote) > 250:
@@ -84,7 +98,8 @@ def expired(lead_id):
     # No verified deadline: still never send to a post that says it is closed,
     # or whose every date (e.g. a walk-in day) has already passed.
     quote = metadata(lead_id).get('quote') or ''
-    dates = quote_dates(quote)
+    walk = db.kv_get(f'walk_in:{lead_id}') or ''
+    dates = quote_dates(quote) + quote_dates(walk)
     return bool(CLOSED_RE.search(quote)) or (bool(dates) and max(dates) <= now)
 
 
